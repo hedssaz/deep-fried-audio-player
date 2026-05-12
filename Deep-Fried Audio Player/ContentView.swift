@@ -103,7 +103,9 @@ struct ContentView: View {
                 .accessibilityIdentifier("audioImportButton")
             PlaceholderButton(titleKey: "audio.record", systemImage: "mic")
                 .accessibilityIdentifier("audioRecordButton")
-            PlaceholderButton(titleKey: "audio.sample", systemImage: "waveform")
+            ActionButton(titleKey: "audio.sample", systemImage: "waveform") {
+                project.generateSampleAudio()
+            }
                 .accessibilityIdentifier("audioSampleButton")
         }
     }
@@ -147,17 +149,11 @@ struct ContentView: View {
 
     private var waveformSection: some View {
         ShellSection(titleKey: "section.waveform", systemImage: "waveform.path.ecg") {
-            VStack(spacing: 12) {
-                Image(systemName: "waveform")
-                    .font(.system(size: 44, weight: .light))
-                    .foregroundStyle(.secondary)
-                Text("waveform.empty")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity, minHeight: 140)
-            .accessibilityIdentifier("waveformPlaceholder")
+            WaveformView(
+                originalBuffer: project.originalAudioBuffer,
+                processedBuffer: project.processedPreviewBuffer,
+                isProcessedStale: project.processingState == .dirty
+            )
         }
         .accessibilityIdentifier("waveformSection")
     }
@@ -248,6 +244,20 @@ private struct PlaceholderButton: View {
         }
         .buttonStyle(.bordered)
         .disabled(true)
+    }
+}
+
+private struct ActionButton: View {
+    let titleKey: String
+    let systemImage: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(LocalizedStringKey(titleKey), systemImage: systemImage)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.borderedProminent)
     }
 }
 

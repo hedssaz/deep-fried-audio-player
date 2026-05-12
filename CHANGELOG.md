@@ -17,6 +17,7 @@ All notable changes to Deep-Fried Audio Player should be documented in this file
 - Added `docs/ARCHITECTURE.md` covering the iOS/iPadOS-first architecture, SwiftUI layering, audio data flow, rendering, processors, playback, presets, localization, and test boundaries.
 - Added the Step 2 app skeleton with an `AudioProjectViewModel`, adaptive SwiftUI root shell, placeholder source/playback/waveform/editor sections, and localized `en` / `zh-Hans` string catalog entries.
 - Added Step 3 core model types for `AudioBuffer`, effects, parameters, effect blocks, and workflows, plus focused model unit tests.
+- Added Step 4 sample audio generation, waveform downsampling, a SwiftUI waveform view, app wiring for sample audio, and focused tests.
 
 ### Changed
 

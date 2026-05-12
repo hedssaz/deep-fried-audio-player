@@ -51,4 +51,15 @@ final class AudioProjectViewModel: ObservableObject {
     @Published var currentWorkflow = Workflow(name: "workflow.untitled")
     @Published var processingState: ProcessingState = .empty
     @Published var playbackState: PlaybackState = .stopped
+
+    func generateSampleAudio() {
+        do {
+            originalAudioBuffer = try SampleAudioFactory.makeDevelopmentSample()
+            processedPreviewBuffer = nil
+            processingState = .dirty
+            playbackState = .stopped
+        } catch {
+            processingState = .failed(message: error.localizedDescription)
+        }
+    }
 }

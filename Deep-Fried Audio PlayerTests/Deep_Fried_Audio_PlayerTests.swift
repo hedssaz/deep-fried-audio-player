@@ -173,6 +173,52 @@ final class Deep_Fried_Audio_PlayerTests: XCTestCase {
         XCTAssertEqual(workflow.orderedBlocks.map(\.id), [second.id, third.id, first.id])
     }
 
+    func testSampleAudioFactoryCreatesDeterministicFiniteStereoBuffer() throws {
+        let first = try SampleAudioFactory.makeDevelopmentSample(duration: 0.1, sampleRate: 1_000)
+        let second = try SampleAudioFactory.makeDevelopmentSample(duration: 0.1, sampleRate: 1_000)
+
+        XCTAssertEqual(first, second)
+        XCTAssertEqual(first.sampleRate, 1_000)
+        XCTAssertEqual(first.channelCount, 2)
+        XCTAssertEqual(first.frames, 100)
+        XCTAssertEqual(first.samples.count, 2)
+        XCTAssertTrue(first.samples.flatMap { $0 }.allSatisfy { $0.isFinite })
+        XCTAssertGreaterThan(first.samples.flatMap { $0 }.map(abs).max() ?? 0, 0.05)
+    }
+
+    func testWaveformDownsamplerReturnsPeakBuckets() throws {
+        let buffer = try AudioBuffer(
+            sampleRate: 8,
+            channelCount: 2,
+            samples: [
+                [-1.0, -0.25, 0.25, 1.0],
+                [0.5, -0.75, 0.75, -0.5],
+            ]
+        )
+
+        let samples = WaveformDownsampler.downsample(buffer, targetSampleCount: 2)
+
+        XCTAssertEqual(
+            samples,
+            [
+                WaveformSample(index: 0, minimum: -1.0, maximum: 0.5),
+                WaveformSample(index: 1, minimum: -0.5, maximum: 1.0),
+            ]
+        )
+    }
+
+    @MainActor
+    func testGeneratingSampleAudioMarksPreviewDirtyWithoutStartingPlayback() {
+        let project = AudioProjectViewModel()
+
+        project.generateSampleAudio()
+
+        XCTAssertNotNil(project.originalAudioBuffer)
+        XCTAssertNil(project.processedPreviewBuffer)
+        XCTAssertEqual(project.processingState, .dirty)
+        XCTAssertEqual(project.playbackState, .stopped)
+    }
+
     private func roundTrip<T: Codable>(_ value: T) throws -> T {
         let data = try JSONEncoder().encode(value)
         return try JSONDecoder().decode(T.self, from: data)
