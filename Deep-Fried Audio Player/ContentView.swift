@@ -19,6 +19,9 @@ struct ContentView: View {
                 compactLayout
             }
         }
+        .task {
+            await project.refreshModulePresets()
+        }
     }
 
     private var compactLayout: some View {
@@ -163,7 +166,7 @@ struct ContentView: View {
         switch project.mode {
         case .singleModule:
             ShellSection(titleKey: "editor.singleModule.title", systemImage: "slider.horizontal.3") {
-                PlaceholderEditorText(textKey: "editor.singleModule.placeholder")
+                SingleModuleEditorView(project: project)
             }
             .accessibilityIdentifier("singleModuleEditorSection")
         case .workflow:

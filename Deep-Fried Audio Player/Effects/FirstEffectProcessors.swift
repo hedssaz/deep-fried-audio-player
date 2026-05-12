@@ -19,7 +19,7 @@ nonisolated enum EffectProcessorError: Error, Equatable, CustomStringConvertible
 }
 
 extension EffectProcessorRegistry {
-    static let builtIn = EffectProcessorRegistry(processors: [
+    nonisolated static let builtIn = EffectProcessorRegistry(processors: [
         SampleRateReductionProcessor(),
         BitDepthReductionProcessor(),
         ClippingProcessor(),
@@ -152,7 +152,7 @@ nonisolated struct LimiterProcessor: EffectProcessor {
 }
 
 private extension EffectBlock {
-    func doubleParameter(_ key: String, default defaultValue: Double) throws -> Double {
+    nonisolated func doubleParameter(_ key: String, default defaultValue: Double) throws -> Double {
         guard let value = parameters.first(where: { $0.key == key })?.value else {
             return defaultValue
         }
@@ -188,7 +188,7 @@ private extension EffectBlock {
         return resolvedValue
     }
 
-    func intParameter(_ key: String, default defaultValue: Int) throws -> Int {
+    nonisolated func intParameter(_ key: String, default defaultValue: Int) throws -> Int {
         guard let value = parameters.first(where: { $0.key == key })?.value else {
             return defaultValue
         }
@@ -222,7 +222,7 @@ private extension EffectBlock {
 }
 
 private extension Comparable {
-    func clamped(to range: ClosedRange<Self>) -> Self {
+    nonisolated func clamped(to range: ClosedRange<Self>) -> Self {
         min(max(self, range.lowerBound), range.upperBound)
     }
 }

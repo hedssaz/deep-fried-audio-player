@@ -208,14 +208,15 @@ final class Deep_Fried_Audio_PlayerTests: XCTestCase {
     }
 
     @MainActor
-    func testGeneratingSampleAudioMarksPreviewDirtyWithoutStartingPlayback() {
+    func testGeneratingSampleAudioRendersPreviewWithoutStartingPlayback() async {
         let project = AudioProjectViewModel()
 
         project.generateSampleAudio()
+        await project.renderSingleModulePreview()
 
         XCTAssertNotNil(project.originalAudioBuffer)
-        XCTAssertNil(project.processedPreviewBuffer)
-        XCTAssertEqual(project.processingState, .dirty)
+        XCTAssertNotNil(project.processedPreviewBuffer)
+        XCTAssertEqual(project.processingState, .ready)
         XCTAssertEqual(project.playbackState, .stopped)
     }
 
