@@ -41,6 +41,14 @@ enum PlaybackState: Equatable {
 @MainActor
 final class AudioProjectViewModel: ObservableObject {
     @Published var mode: AudioProjectMode = .singleModule
+    @Published var originalAudioBuffer: AudioBuffer?
+    @Published var processedPreviewBuffer: AudioBuffer?
+    @Published var selectedSingleModule = EffectBlock(
+        type: .sampleRateReduction,
+        name: "effect.sampleRateReduction",
+        order: 0
+    )
+    @Published var currentWorkflow = Workflow(name: "workflow.untitled")
     @Published var processingState: ProcessingState = .empty
     @Published var playbackState: PlaybackState = .stopped
 }
