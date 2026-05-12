@@ -82,6 +82,8 @@ Deep-Fried Audio PlayerUITests/
 - iOS/iPadOS 权限要明确处理，包括麦克风权限、文件导入权限和后台处理状态。
 - 播放控制必须保证同一时间只播放一个源。
 - 输出音频需要安全保护，避免明显爆音。
+- 所有用户可见文案必须使用 `Localizable.xcstrings`，不要在 SwiftUI 视图里硬编码长文案。
+- 默认本地化语言为简体中文 `zh-Hans` 和英文 `en`，App 应跟随系统语言。
 
 ## Test Expectations
 
@@ -92,6 +94,7 @@ Deep-Fried Audio PlayerUITests/
 - 参数变化会触发预览结果重新生成。
 - 输出数据没有 `NaN` 或无穷值。
 - 不可用 codec 有明确状态。
+- 用户可见文案来自 `Localizable.xcstrings`。
 - 自动化测试不点击播放按钮。
 
 人工验收覆盖：

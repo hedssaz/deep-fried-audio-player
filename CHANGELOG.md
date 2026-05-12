@@ -13,6 +13,8 @@ All notable changes to Deep-Fried Audio Player should be documented in this file
 - Added `docs/IMPLEMENTATION_PLAN.md` with a phased implementation plan, architecture, model definitions, audio services, workflow engine, UI plan, persistence, permissions, testing strategy, and milestone order.
 - Added the project changelog and established the rule that future changes must update it.
 - Added repository hygiene ignore rules for Xcode archives, result bundles, and activity logs.
+- Added localization requirements for `Localizable.xcstrings`, with default `zh-Hans` and `en` support.
+- Added `docs/ARCHITECTURE.md` covering the iOS/iPadOS-first architecture, SwiftUI layering, audio data flow, rendering, processors, playback, presets, localization, and test boundaries.
 - Added the Step 2 app skeleton with an `AudioProjectViewModel`, adaptive SwiftUI root shell, placeholder source/playback/waveform/editor sections, and localized `en` / `zh-Hans` string catalog entries.
 
 ### Changed

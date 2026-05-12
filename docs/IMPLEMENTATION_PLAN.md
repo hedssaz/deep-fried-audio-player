@@ -385,7 +385,33 @@ Error handling:
 - Unsupported audio files should show a readable error.
 - Codec unavailable should appear as a module capability state, not as a crash.
 
-## 11. Implementation Steps
+## 11. Localization
+
+Use Xcode String Catalogs from the start.
+
+Required file:
+
+```text
+Deep-Fried Audio Player/Localizable.xcstrings
+```
+
+Rules:
+
+- All user-visible strings must be stored in `Localizable.xcstrings`.
+- Default supported languages are Simplified Chinese `zh-Hans` and English `en`.
+- SwiftUI views should reference localization keys instead of hardcoded long UI text.
+- Use stable semantic keys such as `home.title`, `audio.import`, `mode.singleModule`, and `workflow.addModule`.
+- Error messages, permission prompts, empty states, button labels, section titles, module names, and parameter labels all count as user-visible strings.
+- Short technical enum names may remain in code, but anything shown to users needs a localized display string.
+- Automated UI tests should query stable accessibility identifiers where possible, not rely on localized visible text.
+
+Acceptance:
+
+- `Localizable.xcstrings` exists before building real UI screens.
+- Initial UI shell has `zh-Hans` and `en` entries for all visible text.
+- No new SwiftUI screen should introduce visible hardcoded prose.
+
+## 12. Implementation Steps
 
 ### Step 1: Repo and Project Hygiene
 
@@ -404,12 +430,14 @@ Acceptance:
 - Add an app-level `AudioProjectViewModel`.
 - Add mode switch for Single Module / Workflow.
 - Add placeholder sections for source controls, playback controls, waveform, and editor.
+- Add `Localizable.xcstrings` with `zh-Hans` and `en` values for all visible placeholder UI strings.
 
 Acceptance:
 
 - App builds.
 - iPhone preview shows a usable vertical layout.
 - iPad preview shows a wider layout or split layout.
+- Root shell text is loaded through `Localizable.xcstrings`.
 
 ### Step 3: Core Models
 
@@ -567,6 +595,7 @@ Acceptance:
 
 - Unit tests for models, processors, renderer, presets.
 - UI tests for launch, mode switch, adding module, editing parameter.
+- Tests or review checks for missing localization keys on new user-visible UI.
 - Manual tests for actual playback.
 
 Acceptance:
@@ -574,7 +603,7 @@ Acceptance:
 - Automated tests pass without sound.
 - Manual playback confirms deep-fried output is audible and distinct.
 
-## 12. Test Strategy
+## 13. Test Strategy
 
 ### Unit Tests
 
@@ -604,6 +633,7 @@ Test cases:
 - Edit one parameter.
 - Confirm processing state changes.
 - Confirm waveform exists.
+- Confirm user-visible text comes from localization keys where practical.
 
 ### Manual Tests
 
@@ -615,7 +645,7 @@ Manual only:
 - Record from microphone.
 - Import real audio from Files.
 
-## 13. Milestone Order
+## 14. Milestone Order
 
 Recommended implementation order:
 
