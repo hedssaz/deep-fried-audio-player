@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct Deep_Fried_Audio_PlayerApp: App {
+    @StateObject private var project = AudioProjectViewModel()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(project)
         }
     }
 }
