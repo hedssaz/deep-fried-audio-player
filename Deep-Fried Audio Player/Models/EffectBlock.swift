@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct EffectBlock: Codable, Equatable, Identifiable {
+nonisolated struct EffectBlock: Codable, Equatable, Identifiable, Sendable {
     var id: UUID
     var type: EffectType
     var name: String

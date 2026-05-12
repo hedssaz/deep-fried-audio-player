@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Workflow: Codable, Equatable, Identifiable {
+nonisolated struct Workflow: Codable, Equatable, Identifiable, Sendable {
     var id: UUID
     var name: String
     var blocks: [EffectBlock]

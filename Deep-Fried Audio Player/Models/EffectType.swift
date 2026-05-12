@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum EffectType: String, CaseIterable, Codable, Identifiable {
+nonisolated enum EffectType: String, CaseIterable, Codable, Identifiable, Sendable {
     case sampleRateReduction = "sample-rate-reduction"
     case bitDepthReduction = "bit-depth-reduction"
     case clipping

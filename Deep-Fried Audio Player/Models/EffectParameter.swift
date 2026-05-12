@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct EffectParameter: Codable, Equatable, Identifiable {
+nonisolated struct EffectParameter: Codable, Equatable, Identifiable, Sendable {
     var id: String { key }
 
     let key: String
@@ -34,7 +34,7 @@ struct EffectParameter: Codable, Equatable, Identifiable {
     }
 }
 
-enum EffectParameterKind: String, Codable, Equatable {
+nonisolated enum EffectParameterKind: String, Codable, Equatable, Sendable {
     case float
     case int
     case bool
@@ -42,7 +42,7 @@ enum EffectParameterKind: String, Codable, Equatable {
     case range
 }
 
-enum EffectParameterValue: Codable, Equatable {
+nonisolated enum EffectParameterValue: Codable, Equatable, Sendable {
     case float(Double)
     case int(Int)
     case bool(Bool)
@@ -110,7 +110,7 @@ enum EffectParameterValue: Codable, Equatable {
     }
 }
 
-enum EffectParameterValueRange: Codable, Equatable {
+nonisolated enum EffectParameterValueRange: Codable, Equatable, Sendable {
     case float(min: Double, max: Double)
     case int(min: Int, max: Int)
     case range(min: Double, max: Double)
@@ -174,7 +174,7 @@ enum EffectParameterValueRange: Codable, Equatable {
     }
 }
 
-struct EffectParameterChoice: Codable, Equatable, Identifiable {
+nonisolated struct EffectParameterChoice: Codable, Equatable, Identifiable, Sendable {
     var id: String { value }
 
     let value: String
@@ -186,7 +186,7 @@ struct EffectParameterChoice: Codable, Equatable, Identifiable {
     }
 }
 
-struct EffectParameterRangeValue: Codable, Equatable {
+nonisolated struct EffectParameterRangeValue: Codable, Equatable, Sendable {
     var lowerBound: Double
     var upperBound: Double
 

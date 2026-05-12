@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum AudioBufferError: Error, Equatable {
+nonisolated enum AudioBufferError: Error, Equatable {
     case invalidSampleRate
     case invalidChannelCount
     case channelCountMismatch(expected: Int, actual: Int)
@@ -16,7 +16,7 @@ enum AudioBufferError: Error, Equatable {
     case nonFiniteSample(channel: Int, frame: Int)
 }
 
-struct AudioBuffer: Codable, Equatable {
+nonisolated struct AudioBuffer: Codable, Equatable, Sendable {
     let sampleRate: Double
     let channelCount: Int
     let frames: Int
