@@ -19,12 +19,14 @@ All notable changes to Deep-Fried Audio Player should be documented in this file
 - Added Step 3 core model types for `AudioBuffer`, effects, parameters, effect blocks, and workflows, plus focused model unit tests.
 - Added Step 4 sample audio generation, waveform downsampling, a SwiftUI waveform view, app wiring for sample audio, and focused tests.
 - Added Step 5 processing engine scaffolding with effect processors, a processor registry, cancellable workflow rendering, output safety protection, and focused renderer tests.
+- Added Step 6 first real effects with editable default parameters, built-in processors for sample-rate reduction, bit-depth reduction, clipping, and limiter, localized module/parameter labels, and focused processor tests.
 
 ### Changed
 
 - Reframed the project from an earlier browser/Fourier demo direction into an Apple SwiftUI app.
 - Prioritized iOS and iPadOS for v1, with macOS deferred for later evaluation.
 - Replaced the default SwiftUI template screen with the localized Deep-Fried Audio Player root layout.
+- Updated the default workflow renderer and single-module state to use the built-in Step 6 effect definitions.
 
 ### Notes
 

@@ -43,9 +43,8 @@ final class AudioProjectViewModel: ObservableObject {
     @Published var mode: AudioProjectMode = .singleModule
     @Published var originalAudioBuffer: AudioBuffer?
     @Published var processedPreviewBuffer: AudioBuffer?
-    @Published var selectedSingleModule = EffectBlock(
+    @Published var selectedSingleModule = EffectBlock.defaultBlock(
         type: .sampleRateReduction,
-        name: "effect.sampleRateReduction",
         order: 0
     )
     @Published var currentWorkflow = Workflow(name: "workflow.untitled")

@@ -34,7 +34,7 @@ actor WorkflowRenderer {
     private var activeRenderTask: Task<AudioBuffer, Error>?
 
     init(
-        registry: EffectProcessorRegistry = .empty,
+        registry: EffectProcessorRegistry = .builtIn,
         safetyPeak: Float = 0.98
     ) {
         self.registry = registry
