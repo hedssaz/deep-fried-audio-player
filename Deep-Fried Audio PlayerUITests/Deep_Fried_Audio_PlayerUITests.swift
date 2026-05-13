@@ -22,6 +22,8 @@ final class Deep_Fried_Audio_PlayerUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["processingSection"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["waveformSection"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["singleModuleEditorSection"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["audioExportMenu"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["audioExportMenu"].isEnabled)
         XCTAssertFalse(app.descendants(matching: .any)["playbackStatus"].exists)
     }
 
@@ -31,6 +33,9 @@ final class Deep_Fried_Audio_PlayerUITests: XCTestCase {
 
         tap(element("audioSampleButton", in: app), in: app)
         XCTAssertTrue(app.descendants(matching: .any)["waveformView"].waitForExistence(timeout: 10))
+        let exportMenu = app.descendants(matching: .any)["audioExportMenu"]
+        XCTAssertTrue(exportMenu.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForEnabled(exportMenu))
         XCTAssertFalse(app.descendants(matching: .any)["playbackStatus"].exists)
 
         let modePicker = app.segmentedControls["modePicker"]
@@ -97,5 +102,11 @@ final class Deep_Fried_Audio_PlayerUITests: XCTestCase {
 
         XCTAssertTrue(element.isHittable, "Expected UI element to be hittable.", file: file, line: line)
         element.tap()
+    }
+
+    private func waitForEnabled(_ element: XCUIElement, timeout: TimeInterval = 10) -> Bool {
+        let predicate = NSPredicate(format: "enabled == true")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 }

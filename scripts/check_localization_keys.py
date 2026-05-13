@@ -19,6 +19,7 @@ LOCALIZATION_PREFIXES = (
     "codec.",
     "control.",
     "editor.",
+    "export.",
     "effect.",
     "home.",
     "mode.",

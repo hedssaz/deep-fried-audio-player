@@ -61,12 +61,8 @@ final class SingleModuleModeTests: XCTestCase {
             renderer: renderer,
             modulePresetStore: ModulePresetStore(directoryURL: makeTemporaryDirectory())
         )
-        project.selectSingleModuleType(.clipping)
         project.originalAudioBuffer = try SampleAudioFactory.makeDevelopmentSample(duration: 0.05)
-
-        let renderTask = Task {
-            await project.renderSingleModulePreview()
-        }
+        project.selectSingleModuleType(.clipping)
 
         await fulfillment(of: [started], timeout: 1)
         let didShowModuleName = await waitFor {
@@ -79,7 +75,10 @@ final class SingleModuleModeTests: XCTestCase {
         XCTAssertEqual(progress.titleKey, "progress.preview.single.title")
         XCTAssertEqual(progress.itemKey, "effect.clipping")
 
-        await renderTask.value
+        let didFinishRender = await waitFor {
+            project.processingState == .ready
+        }
+        XCTAssertTrue(didFinishRender)
     }
 
     func testSingleModuleProgressCanExposeIntermediatePercent() async throws {
@@ -212,6 +211,8 @@ final class SingleModuleModeTests: XCTestCase {
 private final class ProgressDelayProcessor: EffectProcessor, @unchecked Sendable {
     let type: EffectType
     private let started: XCTestExpectation
+    private let lock = NSLock()
+    private var didFulfillStarted = false
 
     init(type: EffectType, started: XCTestExpectation) {
         self.type = type
@@ -219,7 +220,15 @@ private final class ProgressDelayProcessor: EffectProcessor, @unchecked Sendable
     }
 
     func process(_ input: AudioBuffer, block: EffectBlock) throws -> AudioBuffer {
-        started.fulfill()
+        lock.lock()
+        let shouldFulfill = !didFulfillStarted
+        didFulfillStarted = true
+        lock.unlock()
+
+        if shouldFulfill {
+            started.fulfill()
+        }
+
         Thread.sleep(forTimeInterval: 0.2)
         return input
     }

@@ -29,6 +29,7 @@ All notable changes to Deep-Fried Audio Player should be documented in this file
 - Added Step 13 iPad polish with a regular-width two-column workflow editor, persistent selected block detail editing, larger workflow action targets, localized selection prompts, and focused selection-state tests.
 - Added Step 14 test stabilization with product-flow UI tests, stable parameter-control accessibility identifiers, a localization key check script, and missing localization entries.
 - Added Step 15 progress detail polish with UI-only operation progress state, block-level preview progress, indeterminate import/playback states, recording elapsed display, codec stage labels, fixed Stop/Cancel controls, localized progress copy, and focused progress tests.
+- Added processed preview export from the Playback section, with WAV export, runtime-gated MP3 export, localized export statuses, and focused export tests.
 
 ### Changed
 
@@ -37,10 +38,13 @@ All notable changes to Deep-Fried Audio Player should be documented in this file
 - Replaced the default SwiftUI template screen with the localized Deep-Fried Audio Player root layout.
 - Updated the default workflow renderer and single-module state to use the built-in Step 6 effect definitions.
 - Replaced the single-module placeholder editor with localized controls backed by `AudioProjectViewModel`.
+- Lowered deployment targets to the current app minimums: iOS 16.0, macOS 13.0, and xros 1.0.
+- Enabled read/write access for user-selected files on macOS so processed audio export can save to the chosen location.
 
 ### Fixed
 
 - Fixed codec round-trip defaults so low-quality codec processing avoids unsafe low bitrates, and kept only one codec module visible in the module picker.
+- Fixed parameter edits causing the processing/progress section height to change between active and completed preview states.
 
 ### Notes
 

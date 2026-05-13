@@ -160,6 +160,7 @@ final class AudioProjectViewModel: ObservableObject {
     @Published var isRecording = false
     @Published var audioSourceStatusKey: String?
     @Published var playbackStatusKey: String?
+    @Published var exportStatusKey: String?
     @Published var operationProgress: OperationProgress?
 
     let availableSingleModuleTypes = EffectType.availableUserFacingEffectTypes
@@ -177,6 +178,7 @@ final class AudioProjectViewModel: ObservableObject {
     private let modulePresetStore: ModulePresetStore
     private let workflowPresetStore: WorkflowPresetStore
     private let audioImportService: any AudioImportServicing
+    private let audioExportService: any AudioExportServicing
     private let recordingService: any RecordingServicing
     private let playbackController: any AudioPlaybackControlling
     private var renderTask: Task<Void, Never>?
@@ -188,6 +190,7 @@ final class AudioProjectViewModel: ObservableObject {
         modulePresetStore: ModulePresetStore = ModulePresetStore(),
         workflowPresetStore: WorkflowPresetStore = WorkflowPresetStore(),
         audioImportService: any AudioImportServicing = AudioImportService(),
+        audioExportService: any AudioExportServicing = AudioExportService(),
         recordingService: (any RecordingServicing)? = nil,
         playbackController: (any AudioPlaybackControlling)? = nil
     ) {
@@ -195,8 +198,17 @@ final class AudioProjectViewModel: ObservableObject {
         self.modulePresetStore = modulePresetStore
         self.workflowPresetStore = workflowPresetStore
         self.audioImportService = audioImportService
+        self.audioExportService = audioExportService
         self.recordingService = recordingService ?? RecordingService(importService: audioImportService)
         self.playbackController = playbackController ?? AudioPlaybackController()
+    }
+
+    var canExportProcessedAudio: Bool {
+        processedPreviewBuffer != nil && !isRecording
+    }
+
+    var isMP3ExportAvailable: Bool {
+        audioExportService.isFormatAvailable(.mp3)
     }
 
     func generateSampleAudio() {
@@ -303,6 +315,49 @@ final class AudioProjectViewModel: ObservableObject {
             playbackState: .playingProcessed,
             statusKey: "playback.playingProcessed"
         )
+    }
+
+    func prepareProcessedExport(
+        format: AudioExportFormat,
+        date: Date = Date()
+    ) async -> PreparedAudioExport? {
+        guard !isRecording else {
+            exportStatusKey = "export.unavailableWhileRecording"
+            return nil
+        }
+
+        guard let processedPreviewBuffer else {
+            exportStatusKey = "export.noProcessed"
+            return nil
+        }
+
+        guard audioExportService.isFormatAvailable(format) else {
+            exportStatusKey = format == .mp3 ? "export.mp3Unavailable" : "export.failed"
+            return nil
+        }
+
+        do {
+            let data = try await audioExportService.export(processedPreviewBuffer, format: format)
+            exportStatusKey = nil
+            return PreparedAudioExport(format: format, data: data, date: date)
+        } catch AudioExportServiceError.formatUnavailable(.mp3) {
+            exportStatusKey = "export.mp3Unavailable"
+        } catch AudioExportServiceError.emptyAudio {
+            exportStatusKey = "export.noProcessed"
+        } catch {
+            exportStatusKey = "export.failed"
+        }
+
+        return nil
+    }
+
+    func completeExport(result: Result<URL, Error>) {
+        switch result {
+        case .success:
+            exportStatusKey = "export.saved"
+        case .failure:
+            exportStatusKey = "export.failed"
+        }
     }
 
     func stopPlayback() {
@@ -789,6 +844,7 @@ final class AudioProjectViewModel: ObservableObject {
         originalAudioBuffer = buffer
         processedPreviewBuffer = nil
         audioSourceStatusKey = statusKey
+        exportStatusKey = nil
         schedulePreviewRenderForCurrentMode()
     }
 
@@ -1026,6 +1082,7 @@ final class AudioProjectViewModel: ObservableObject {
         let token = UUID()
         activeRenderToken = token
         processingState = .processing(progress: 0)
+        exportStatusKey = nil
         operationProgress = OperationProgress(
             kind: .singleModulePreview,
             titleKey: "progress.preview.single.title",
@@ -1091,6 +1148,7 @@ final class AudioProjectViewModel: ObservableObject {
         let token = UUID()
         activeRenderToken = token
         processingState = .processing(progress: 0)
+        exportStatusKey = nil
         operationProgress = OperationProgress(
             kind: .workflowPreview,
             titleKey: "progress.preview.workflow.title",

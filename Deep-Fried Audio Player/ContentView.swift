@@ -12,6 +12,8 @@ struct ContentView: View {
     @EnvironmentObject private var project: AudioProjectViewModel
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var isShowingAudioImporter = false
+    @State private var isShowingAudioExporter = false
+    @State private var preparedAudioExport: PreparedAudioExport?
 
     var body: some View {
         Group {
@@ -30,6 +32,15 @@ struct ContentView: View {
             allowsMultipleSelection: false
         ) { result in
             handleAudioImportResult(result)
+        }
+        .fileExporter(
+            isPresented: $isShowingAudioExporter,
+            document: preparedAudioExport?.document,
+            contentType: preparedAudioExport?.contentType ?? AudioExportFormat.wav.contentType,
+            defaultFilename: preparedAudioExport?.defaultFileName ?? AudioExportFormat.wav.defaultFileName()
+        ) { result in
+            project.completeExport(result: result)
+            preparedAudioExport = nil
         }
     }
 
@@ -202,6 +213,20 @@ struct ContentView: View {
             .disabled(project.playbackState == .stopped)
             .accessibilityIdentifier("playbackStopButton")
 
+            exportMenu
+
+            if let exportStatusKey = project.exportStatusKey {
+                Label(LocalizedStringKey(exportStatusKey), systemImage: exportStatusSystemImage(for: exportStatusKey))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("exportStatus")
+            } else if project.canExportProcessedAudio && !project.isMP3ExportAvailable {
+                Label("export.mp3Unavailable", systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("exportStatus")
+            }
+
             if let statusKey = project.playbackStatusKey {
                 Label(LocalizedStringKey(statusKey), systemImage: playbackStatusSystemImage)
                     .font(.caption)
@@ -211,27 +236,56 @@ struct ContentView: View {
         }
     }
 
+    private var exportMenu: some View {
+        Menu {
+            Button {
+                prepareAudioExport(.wav)
+            } label: {
+                Label(LocalizedStringKey(AudioExportFormat.wav.labelKey), systemImage: "waveform")
+            }
+            .disabled(!project.canExportProcessedAudio)
+            .accessibilityIdentifier("exportWAVButton")
+
+            Button {
+                prepareAudioExport(.mp3)
+            } label: {
+                Label(LocalizedStringKey(AudioExportFormat.mp3.labelKey), systemImage: "waveform.badge.magnifyingglass")
+            }
+            .disabled(!project.canExportProcessedAudio || !project.isMP3ExportAvailable)
+            .accessibilityIdentifier("exportMP3Button")
+        } label: {
+            Label("export.menu", systemImage: "square.and.arrow.up")
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.bordered)
+        .disabled(!project.canExportProcessedAudio)
+        .accessibilityIdentifier("audioExportMenu")
+    }
+
     private var processingSection: some View {
         ShellSection(titleKey: "section.processing", systemImage: "gearshape.2") {
-            if let operationProgress = project.operationProgress {
-                OperationProgressDetailView(progress: operationProgress) {
-                    Task {
-                        await project.cancelActiveOperation()
+            Group {
+                if let operationProgress = project.operationProgress {
+                    OperationProgressDetailView(progress: operationProgress) {
+                        Task {
+                            await project.cancelActiveOperation()
+                        }
+                    }
+                } else {
+                    HStack(spacing: 12) {
+                        Image(systemName: processingSystemImage)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 24)
+                        Text(LocalizedStringKey(processingLocalizationKey))
+                            .font(.body)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Color.clear
+                            .frame(width: 96, height: 1)
+                            .accessibilityHidden(true)
                     }
                 }
-            } else {
-                HStack(spacing: 12) {
-                    Image(systemName: processingSystemImage)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24)
-                    Text(LocalizedStringKey(processingLocalizationKey))
-                        .font(.body)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Color.clear
-                        .frame(width: 96, height: 1)
-                        .accessibilityHidden(true)
-                }
             }
+            .frame(minHeight: 118, alignment: .topLeading)
         }
         .accessibilityIdentifier("processingSection")
     }
@@ -319,6 +373,17 @@ struct ContentView: View {
         }
     }
 
+    private func exportStatusSystemImage(for statusKey: String) -> String {
+        switch statusKey {
+        case "export.saved":
+            "checkmark.circle"
+        case "export.failed", "export.noProcessed", "export.unavailableWhileRecording":
+            "exclamationmark.triangle"
+        default:
+            "info.circle"
+        }
+    }
+
     private func handleAudioImportResult(_ result: Result<[URL], Error>) {
         switch result {
         case let .success(urls):
@@ -333,6 +398,17 @@ struct ContentView: View {
         case let .failure(error):
             project.audioSourceStatusKey = "audio.importFailed"
             project.processingState = .failed(message: error.localizedDescription)
+        }
+    }
+
+    private func prepareAudioExport(_ format: AudioExportFormat) {
+        Task { @MainActor in
+            guard let export = await project.prepareProcessedExport(format: format) else {
+                return
+            }
+
+            preparedAudioExport = export
+            isShowingAudioExporter = true
         }
     }
 }
@@ -454,6 +530,10 @@ private struct OperationProgressDetailView: View {
             } else if progress.isActive {
                 ProgressView()
                     .accessibilityIdentifier("processingProgress")
+            } else {
+                Color.clear
+                    .frame(height: 4)
+                    .accessibilityHidden(true)
             }
 
             detailRows
@@ -485,6 +565,17 @@ private struct OperationProgressDetailView: View {
 
     @ViewBuilder
     private var detailRows: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            primaryDetailRow
+                .frame(height: 18, alignment: .leading)
+
+            terminalDetailRow
+                .frame(height: 18, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder
+    private var primaryDetailRow: some View {
         if let step = progress.step {
             Label {
                 Text(verbatim: localizedStepText(step))
@@ -494,9 +585,7 @@ private struct OperationProgressDetailView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
             .accessibilityIdentifier("operationProgressStep")
-        }
-
-        if let elapsedStartDate = progress.elapsedStartDate {
+        } else if let elapsedStartDate = progress.elapsedStartDate {
             TimelineView(.periodic(from: elapsedStartDate, by: 1)) { context in
                 Label {
                     HStack(spacing: 4) {
@@ -511,8 +600,14 @@ private struct OperationProgressDetailView: View {
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("operationProgressElapsed")
             }
+        } else {
+            Color.clear
+                .accessibilityHidden(true)
         }
+    }
 
+    @ViewBuilder
+    private var terminalDetailRow: some View {
         if let terminalState = progress.terminalState {
             Label(
                 LocalizedStringKey(terminalState.labelKey),
@@ -521,6 +616,9 @@ private struct OperationProgressDetailView: View {
             .font(.caption)
             .foregroundStyle(terminalStyle(for: terminalState))
             .accessibilityIdentifier("operationProgressTerminalStatus")
+        } else {
+            Color.clear
+                .accessibilityHidden(true)
         }
     }
 

@@ -188,7 +188,9 @@ nonisolated enum CodecRoundTripFile {
                 interleaved: false
             )
             try outputFile.write(from: pcmBuffer)
-            outputFile.close()
+            if #available(iOS 18.0, macOS 15.0, *) {
+                outputFile.close()
+            }
         }
 
         progress(EffectProcessorProgress(phase: .codecDecoding, fractionCompleted: 0.65))
