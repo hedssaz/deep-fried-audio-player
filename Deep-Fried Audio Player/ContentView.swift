@@ -140,11 +140,14 @@ struct ContentView: View {
             .tint(project.isRecording ? .red : nil)
                 .accessibilityIdentifier("audioRecordButton")
 
-            ActionButton(titleKey: "audio.sample", systemImage: "waveform") {
+            ActionButton(
+                titleKey: "audio.sample",
+                systemImage: "waveform",
+                accessibilityIdentifier: "audioSampleButton"
+            ) {
                 project.generateSampleAudio()
             }
                 .disabled(project.isRecording)
-                .accessibilityIdentifier("audioSampleButton")
 
             if let statusKey = project.audioSourceStatusKey {
                 Label(LocalizedStringKey(statusKey), systemImage: audioSourceStatusSystemImage)
@@ -347,6 +350,7 @@ private struct ShellSection<Content: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -377,6 +381,7 @@ private struct PlaybackButton: View {
 private struct ActionButton: View {
     let titleKey: String
     let systemImage: String
+    let accessibilityIdentifier: String
     let action: () -> Void
 
     var body: some View {
@@ -385,6 +390,7 @@ private struct ActionButton: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.borderedProminent)
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 }
 

@@ -27,6 +27,7 @@ All notable changes to Deep-Fried Audio Player should be documented in this file
 - Added Step 11 Expanded Effects with a unified Filter / EQ module, Compressor envelope processing, Top-K Spectral Damage, mode-specific parameter visibility, localized effect controls, and focused processor/workflow tests.
 - Added Step 12 Codec Capability Layer with runtime AVFoundation codec round-trip detection, AAC/MP3/Apple Lossless capability modeling, unavailable/planned codec states for AMR-NB, Speex, G.711, and G.729, real codec processors, localized codec controls, and focused capability tests.
 - Added Step 13 iPad polish with a regular-width two-column workflow editor, persistent selected block detail editing, larger workflow action targets, localized selection prompts, and focused selection-state tests.
+- Added Step 14 test stabilization with product-flow UI tests, stable parameter-control accessibility identifiers, a localization key check script, and missing localization entries.
 
 ### Changed
 

@@ -25,6 +25,7 @@ struct EffectParameterEditor: View {
             parameterControl
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("parameterEditor.\(parameter.key)")
     }
 
@@ -55,10 +56,13 @@ struct EffectParameterEditor: View {
                 )
             ) {
                 ForEach(parameter.choices) { choice in
-                    Text(LocalizedStringKey(choice.labelKey)).tag(choice.value)
+                    Text(LocalizedStringKey(choice.labelKey))
+                        .tag(choice.value)
+                        .accessibilityIdentifier("parameterChoice.\(parameter.key).\(choice.value)")
                 }
             }
             .pickerStyle(.menu)
+            .accessibilityIdentifier("parameterControl.\(parameter.key).choice")
         case .int:
             Stepper(
                 value: Binding(
@@ -69,6 +73,7 @@ struct EffectParameterEditor: View {
             ) {
                 EmptyView()
             }
+            .accessibilityIdentifier("parameterControl.\(parameter.key).int")
         case .float:
             Slider(
                 value: Binding(
@@ -77,6 +82,7 @@ struct EffectParameterEditor: View {
                 ),
                 in: floatRange
             )
+            .accessibilityIdentifier("parameterControl.\(parameter.key).float")
         case .bool:
             Toggle(
                 LocalizedStringKey(parameter.labelKey),
@@ -86,6 +92,7 @@ struct EffectParameterEditor: View {
                 )
             )
             .labelsHidden()
+            .accessibilityIdentifier("parameterControl.\(parameter.key).bool")
         case .range:
             VStack(spacing: 8) {
                 LabeledContent("parameter.rangeLower") {
@@ -96,6 +103,7 @@ struct EffectParameterEditor: View {
                         ),
                         in: rangeLimits
                     )
+                    .accessibilityIdentifier("parameterControl.\(parameter.key).rangeLower")
                 }
                 LabeledContent("parameter.rangeUpper") {
                     Slider(
@@ -105,6 +113,7 @@ struct EffectParameterEditor: View {
                         ),
                         in: rangeLimits
                     )
+                    .accessibilityIdentifier("parameterControl.\(parameter.key).rangeUpper")
                 }
             }
         }

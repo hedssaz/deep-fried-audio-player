@@ -26,7 +26,6 @@ struct WorkflowEditorView: View {
             presetSection
             statusView
         }
-        .accessibilityIdentifier("workflowEditor.compact")
     }
 
     private var regularLayout: some View {
@@ -46,7 +45,6 @@ struct WorkflowEditorView: View {
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .accessibilityIdentifier("workflowEditor.regular")
     }
 
     private var addModuleSection: some View {
@@ -75,6 +73,7 @@ struct WorkflowEditorView: View {
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("addWorkflowModuleButton")
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("workflowAddModuleSection")
     }
 
@@ -107,6 +106,7 @@ struct WorkflowEditorView: View {
                         )
                     }
                 }
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("workflowBlockList")
             }
         }
@@ -127,6 +127,7 @@ struct WorkflowEditorView: View {
                     .accessibilityIdentifier("workflowSelectionPrompt")
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("workflowModuleDetails")
     }
 
@@ -213,6 +214,7 @@ struct WorkflowEditorView: View {
                 }
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("workflowPresets")
     }
 
@@ -370,6 +372,7 @@ private struct WorkflowBlockRow: View {
                     .padding(.vertical, 4)
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("workflowBlock.\(block.id.uuidString)")
     }
 
