@@ -2439,6 +2439,22 @@
         }
       }
     },
+    "workflow.blockDisabled" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disabled"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已停用"
+          }
+        }
+      }
+    },
     "workflow.blocks" : {
       "localizations" : {
         "en" : {
@@ -2531,6 +2547,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "模块"
+          }
+        }
+      }
+    },
+    "workflow.moduleDetails" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Module Details"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模块详情"
           }
         }
       }
@@ -2739,6 +2771,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法渲染工作流预览。"
+          }
+        }
+      }
+    },
+    "workflow.selectModulePrompt" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a module to edit parameters."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择一个模块来编辑参数。"
           }
         }
       }

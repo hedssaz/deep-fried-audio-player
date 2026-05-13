@@ -67,12 +67,21 @@ final class AudioProjectViewModel: ObservableObject {
     @Published var selectedWorkflowPresetID: WorkflowPreset.ID?
     @Published var workflowPresetName = ""
     @Published var workflowStatusKey: String?
+    @Published var selectedWorkflowBlockID: EffectBlock.ID?
     @Published var isRecording = false
     @Published var audioSourceStatusKey: String?
     @Published var playbackStatusKey: String?
 
     let availableSingleModuleTypes = EffectType.availableUserFacingEffectTypes
     let availableWorkflowModuleTypes = EffectType.availableUserFacingEffectTypes
+
+    var selectedWorkflowBlock: EffectBlock? {
+        guard let selectedWorkflowBlockID else {
+            return nil
+        }
+
+        return currentWorkflow.orderedBlocks.first { $0.id == selectedWorkflowBlockID }
+    }
 
     private let renderer: WorkflowRenderer
     private let modulePresetStore: ModulePresetStore
@@ -377,6 +386,7 @@ final class AudioProjectViewModel: ObservableObject {
             let preset = try await workflowPresetStore.load(id: selectedWorkflowPresetID)
             currentWorkflow = preset.workflow
             normalizeWorkflowOrder()
+            self.selectedWorkflowBlockID = currentWorkflow.orderedBlocks.first?.id
             workflowPresetName = preset.name
             workflowStatusKey = "workflow.presetLoaded"
             scheduleWorkflowPreviewRender()
@@ -394,11 +404,25 @@ final class AudioProjectViewModel: ObservableObject {
         workflowBlock.order = (currentWorkflow.blocks.map(\.order).max() ?? -1) + 1
 
         currentWorkflow.blocks.append(workflowBlock)
+        selectedWorkflowBlockID = workflowBlock.id
         currentWorkflow.updatedAt = Date()
         mode = .workflow
         singleModuleStatusKey = "singleModule.sentToWorkflow"
         workflowStatusKey = "workflow.moduleReceived"
         scheduleWorkflowPreviewRender()
+    }
+
+    func selectWorkflowBlock(id: EffectBlock.ID?) {
+        guard let id else {
+            selectedWorkflowBlockID = nil
+            return
+        }
+
+        guard currentWorkflow.blocks.contains(where: { $0.id == id }) else {
+            return
+        }
+
+        selectedWorkflowBlockID = id
     }
 
     func addWorkflowBlock(type: EffectType? = nil) {
@@ -409,6 +433,7 @@ final class AudioProjectViewModel: ObservableObject {
         )
 
         currentWorkflow.blocks.append(block)
+        selectedWorkflowBlockID = block.id
         markWorkflowChanged()
     }
 
@@ -421,18 +446,26 @@ final class AudioProjectViewModel: ObservableObject {
         duplicatedBlock.id = UUID()
         duplicatedBlock.order = nextWorkflowOrder()
         currentWorkflow.blocks.append(duplicatedBlock)
+        selectedWorkflowBlockID = duplicatedBlock.id
         markWorkflowChanged()
     }
 
     func deleteWorkflowBlock(id: EffectBlock.ID) {
-        let originalCount = currentWorkflow.blocks.count
-        currentWorkflow.blocks.removeAll { $0.id == id }
-
-        guard currentWorkflow.blocks.count != originalCount else {
+        let orderedBlocks = currentWorkflow.orderedBlocks
+        guard let deletedOrderedIndex = orderedBlocks.firstIndex(where: { $0.id == id }) else {
             return
         }
 
+        currentWorkflow.blocks.removeAll { $0.id == id }
         normalizeWorkflowOrder()
+
+        if selectedWorkflowBlockID == id {
+            selectedWorkflowBlockID = nearestWorkflowBlockID(afterDeletingOrderedIndex: deletedOrderedIndex)
+        } else if let selectedWorkflowBlockID,
+                  !currentWorkflow.blocks.contains(where: { $0.id == selectedWorkflowBlockID }) {
+            self.selectedWorkflowBlockID = currentWorkflow.orderedBlocks.first?.id
+        }
+
         markWorkflowChanged()
     }
 
@@ -551,6 +584,16 @@ final class AudioProjectViewModel: ObservableObject {
             normalizedBlock.order = index
             return normalizedBlock
         }
+    }
+
+    private func nearestWorkflowBlockID(afterDeletingOrderedIndex deletedOrderedIndex: Int) -> EffectBlock.ID? {
+        let orderedBlocks = currentWorkflow.orderedBlocks
+        guard !orderedBlocks.isEmpty else {
+            return nil
+        }
+
+        let fallbackIndex = min(deletedOrderedIndex, orderedBlocks.count - 1)
+        return orderedBlocks[fallbackIndex].id
     }
 
     private nonisolated static func reorderedBlocks(

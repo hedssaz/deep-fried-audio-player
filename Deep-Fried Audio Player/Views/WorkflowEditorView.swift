@@ -9,20 +9,44 @@ import SwiftUI
 
 struct WorkflowEditorView: View {
     @ObservedObject var project: AudioProjectViewModel
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
+        if horizontalSizeClass == .regular {
+            regularLayout
+        } else {
+            compactLayout
+        }
+    }
+
+    private var compactLayout: some View {
         VStack(alignment: .leading, spacing: 16) {
             addModuleSection
-            blockListSection
+            blockListSection(showsInlineParameters: true, highlightsSelection: false)
             presetSection
-
-            if let statusKey = project.workflowStatusKey {
-                Label(LocalizedStringKey(statusKey), systemImage: "info.circle")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("workflowStatus")
-            }
+            statusView
         }
+        .accessibilityIdentifier("workflowEditor.compact")
+    }
+
+    private var regularLayout: some View {
+        HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 16) {
+                addModuleSection
+                blockListSection(showsInlineParameters: false, highlightsSelection: true)
+            }
+            .frame(minWidth: 280, maxWidth: 360, alignment: .topLeading)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 16) {
+                selectedBlockDetailSection
+                presetSection
+                statusView
+            }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+        }
+        .accessibilityIdentifier("workflowEditor.regular")
     }
 
     private var addModuleSection: some View {
@@ -54,7 +78,10 @@ struct WorkflowEditorView: View {
         .accessibilityIdentifier("workflowAddModuleSection")
     }
 
-    private var blockListSection: some View {
+    private func blockListSection(
+        showsInlineParameters: Bool,
+        highlightsSelection: Bool
+    ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("workflow.blocks", systemImage: "square.stack.3d.up")
                 .font(.subheadline)
@@ -74,13 +101,81 @@ struct WorkflowEditorView: View {
                             block: block,
                             index: index,
                             isFirst: index == orderedBlocks.startIndex,
-                            isLast: index == orderedBlocks.index(before: orderedBlocks.endIndex)
+                            isLast: index == orderedBlocks.index(before: orderedBlocks.endIndex),
+                            isSelected: highlightsSelection && block.id == project.selectedWorkflowBlockID,
+                            showsInlineParameters: showsInlineParameters
                         )
                     }
                 }
                 .accessibilityIdentifier("workflowBlockList")
             }
         }
+    }
+
+    private var selectedBlockDetailSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("workflow.moduleDetails", systemImage: "slider.horizontal.3")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            if let selectedBlock = project.selectedWorkflowBlock {
+                selectedBlockParameterPanel(selectedBlock)
+            } else {
+                Text(LocalizedStringKey(project.currentWorkflow.orderedBlocks.isEmpty ? "workflow.empty" : "workflow.selectModulePrompt"))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("workflowSelectionPrompt")
+            }
+        }
+        .accessibilityIdentifier("workflowModuleDetails")
+    }
+
+    private func selectedBlockParameterPanel(_ block: EffectBlock) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Label {
+                    Text(LocalizedStringKey(block.type.displayNameKey))
+                        .font(.headline)
+                } icon: {
+                    Image(systemName: "slider.horizontal.3")
+                }
+
+                Spacer(minLength: 12)
+
+                Text(verbatim: blockOrderText(for: block))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Toggle(
+                "workflow.blockEnabled",
+                isOn: Binding(
+                    get: { block.isEnabled },
+                    set: { project.setWorkflowBlockEnabled(id: block.id, isEnabled: $0) }
+                )
+            )
+            .accessibilityIdentifier("workflowSelectedBlockEnabled.\(block.id.uuidString)")
+
+            let visibleParameters = block.visibleParameters
+            if visibleParameters.isEmpty {
+                Text("workflow.noParameters")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(visibleParameters) { parameter in
+                        EffectParameterEditor(parameter: parameter) { value in
+                            project.updateWorkflowBlockParameter(
+                                blockID: block.id,
+                                key: parameter.key,
+                                value: value
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        .accessibilityIdentifier("workflowSelectedBlockParameters")
     }
 
     private var presetSection: some View {
@@ -145,6 +240,24 @@ struct WorkflowEditorView: View {
         .disabled(project.selectedWorkflowPresetID == nil)
         .accessibilityIdentifier("loadWorkflowPresetButton")
     }
+
+    @ViewBuilder
+    private var statusView: some View {
+        if let statusKey = project.workflowStatusKey {
+            Label(LocalizedStringKey(statusKey), systemImage: "info.circle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("workflowStatus")
+        }
+    }
+
+    private func blockOrderText(for block: EffectBlock) -> String {
+        guard let index = project.currentWorkflow.orderedBlocks.firstIndex(where: { $0.id == block.id }) else {
+            return ""
+        }
+
+        return "#\(index + 1)"
+    }
 }
 
 private struct WorkflowBlockRow: View {
@@ -153,91 +266,110 @@ private struct WorkflowBlockRow: View {
     let index: Int
     let isFirst: Bool
     let isLast: Bool
+    let isSelected: Bool
+    let showsInlineParameters: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Label {
-                    Text(LocalizedStringKey(block.type.displayNameKey))
-                        .font(.headline)
-                } icon: {
-                    Image(systemName: "slider.horizontal.3")
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Label {
+                        Text(LocalizedStringKey(block.type.displayNameKey))
+                            .font(.headline)
+                    } icon: {
+                        Image(systemName: "slider.horizontal.3")
+                    }
+
+                    Spacer(minLength: 12)
+
+                    Image(systemName: block.isEnabled ? "checkmark.circle" : "pause.circle")
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel(Text(LocalizedStringKey(block.isEnabled ? "workflow.blockEnabled" : "workflow.blockDisabled")))
+
+                    Text(verbatim: "#\(index + 1)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
-                Spacer(minLength: 12)
+                if showsInlineParameters {
+                    Toggle(
+                        "workflow.blockEnabled",
+                        isOn: Binding(
+                            get: { block.isEnabled },
+                            set: { project.setWorkflowBlockEnabled(id: block.id, isEnabled: $0) }
+                        )
+                    )
+                    .accessibilityIdentifier("workflowBlockEnabled.\(block.id.uuidString)")
 
-                Text(verbatim: "#\(index + 1)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Toggle(
-                "workflow.blockEnabled",
-                isOn: Binding(
-                    get: { block.isEnabled },
-                    set: { project.setWorkflowBlockEnabled(id: block.id, isEnabled: $0) }
-                )
-            )
-            .accessibilityIdentifier("workflowBlockEnabled.\(block.id.uuidString)")
-
-            let visibleParameters = block.visibleParameters
-            if visibleParameters.isEmpty {
-                Text("workflow.noParameters")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            } else {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(visibleParameters) { parameter in
-                        EffectParameterEditor(parameter: parameter) { value in
-                            project.updateWorkflowBlockParameter(
-                                blockID: block.id,
-                                key: parameter.key,
-                                value: value
-                            )
+                    let visibleParameters = block.visibleParameters
+                    if visibleParameters.isEmpty {
+                        Text("workflow.noParameters")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(visibleParameters) { parameter in
+                                EffectParameterEditor(parameter: parameter) { value in
+                                    project.updateWorkflowBlockParameter(
+                                        blockID: block.id,
+                                        key: parameter.key,
+                                        value: value
+                                    )
+                                }
+                            }
                         }
                     }
                 }
+
+                HStack(spacing: 8) {
+                    iconButton(
+                        titleKey: "workflow.moveUp",
+                        systemImage: "chevron.up",
+                        disabled: isFirst
+                    ) {
+                        project.moveWorkflowBlock(id: block.id, offset: -1)
+                    }
+
+                    iconButton(
+                        titleKey: "workflow.moveDown",
+                        systemImage: "chevron.down",
+                        disabled: isLast
+                    ) {
+                        project.moveWorkflowBlock(id: block.id, offset: 1)
+                    }
+
+                    iconButton(
+                        titleKey: "workflow.duplicate",
+                        systemImage: "doc.on.doc"
+                    ) {
+                        project.duplicateWorkflowBlock(id: block.id)
+                    }
+
+                    iconButton(
+                        titleKey: "workflow.delete",
+                        systemImage: "trash",
+                        role: .destructive
+                    ) {
+                        project.deleteWorkflowBlock(id: block.id)
+                    }
+                }
             }
-
-            HStack(spacing: 8) {
-                iconButton(
-                    titleKey: "workflow.moveUp",
-                    systemImage: "chevron.up",
-                    disabled: isFirst
-                ) {
-                    project.moveWorkflowBlock(id: block.id, offset: -1)
-                }
-
-                iconButton(
-                    titleKey: "workflow.moveDown",
-                    systemImage: "chevron.down",
-                    disabled: isLast
-                ) {
-                    project.moveWorkflowBlock(id: block.id, offset: 1)
-                }
-
-                iconButton(
-                    titleKey: "workflow.duplicate",
-                    systemImage: "doc.on.doc"
-                ) {
-                    project.duplicateWorkflowBlock(id: block.id)
-                }
-
-                iconButton(
-                    titleKey: "workflow.delete",
-                    systemImage: "trash",
-                    role: .destructive
-                ) {
-                    project.deleteWorkflowBlock(id: block.id)
-                }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                isSelected ? Color.accentColor.opacity(0.12) : Color.clear,
+                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                project.selectWorkflowBlock(id: block.id)
             }
 
             if !isLast {
                 Divider()
-                    .padding(.top, 4)
+                    .padding(.vertical, 4)
             }
         }
-        .padding(.vertical, 10)
         .accessibilityIdentifier("workflowBlock.\(block.id.uuidString)")
     }
 
@@ -250,7 +382,7 @@ private struct WorkflowBlockRow: View {
     ) -> some View {
         Button(role: role, action: action) {
             Image(systemName: systemImage)
-                .frame(width: 32, height: 32)
+                .frame(width: 44, height: 44)
         }
         .buttonStyle(.bordered)
         .disabled(disabled)

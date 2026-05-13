@@ -70,6 +70,98 @@ final class WorkflowModeTests: XCTestCase {
         XCTAssertEqual(project.currentWorkflow.orderedBlocks.map(\.order), [0, 1, 2])
     }
 
+    func testAddingWorkflowBlockSelectsNewBlock() throws {
+        let project = makeProject()
+
+        project.addWorkflowBlock(type: .sampleRateReduction)
+        let firstBlock = try XCTUnwrap(project.currentWorkflow.orderedBlocks.first)
+
+        XCTAssertEqual(project.selectedWorkflowBlockID, firstBlock.id)
+        XCTAssertEqual(project.selectedWorkflowBlock, firstBlock)
+    }
+
+    func testDuplicatingWorkflowBlockSelectsDuplicate() throws {
+        let project = makeProject()
+        project.addWorkflowBlock(type: .bitDepthReduction)
+        let originalBlock = try XCTUnwrap(project.currentWorkflow.orderedBlocks.first)
+
+        project.duplicateWorkflowBlock(id: originalBlock.id)
+
+        let duplicatedBlock = try XCTUnwrap(project.currentWorkflow.orderedBlocks.last)
+        XCTAssertEqual(project.selectedWorkflowBlockID, duplicatedBlock.id)
+        XCTAssertNotEqual(project.selectedWorkflowBlockID, originalBlock.id)
+    }
+
+    func testMovingWorkflowBlocksPreservesSelectedBlock() throws {
+        let project = makeProject()
+        project.addWorkflowBlock(type: .sampleRateReduction)
+        project.addWorkflowBlock(type: .clipping)
+        project.addWorkflowBlock(type: .limiter)
+        let selectedBlock = try XCTUnwrap(project.currentWorkflow.orderedBlocks.dropFirst().first)
+        project.selectWorkflowBlock(id: selectedBlock.id)
+
+        project.moveWorkflowBlocks(fromOffsets: IndexSet(integer: 2), toOffset: 0)
+
+        XCTAssertEqual(project.selectedWorkflowBlockID, selectedBlock.id)
+        XCTAssertEqual(project.selectedWorkflowBlock?.type, .clipping)
+    }
+
+    func testDeletingSelectedWorkflowBlockSelectsNearestRemainingBlock() throws {
+        let project = makeProject()
+        project.addWorkflowBlock(type: .sampleRateReduction)
+        project.addWorkflowBlock(type: .clipping)
+        project.addWorkflowBlock(type: .limiter)
+        let orderedBlocks = project.currentWorkflow.orderedBlocks
+        project.selectWorkflowBlock(id: orderedBlocks[1].id)
+
+        project.deleteWorkflowBlock(id: orderedBlocks[1].id)
+
+        let afterMiddleDelete = project.currentWorkflow.orderedBlocks
+        XCTAssertEqual(project.selectedWorkflowBlockID, afterMiddleDelete[1].id)
+        XCTAssertEqual(project.selectedWorkflowBlock?.type, .limiter)
+
+        project.deleteWorkflowBlock(id: afterMiddleDelete[1].id)
+
+        let afterLastDelete = project.currentWorkflow.orderedBlocks
+        XCTAssertEqual(project.selectedWorkflowBlockID, afterLastDelete[0].id)
+        XCTAssertEqual(project.selectedWorkflowBlock?.type, .sampleRateReduction)
+
+        project.deleteWorkflowBlock(id: afterLastDelete[0].id)
+
+        XCTAssertNil(project.selectedWorkflowBlockID)
+        XCTAssertNil(project.selectedWorkflowBlock)
+    }
+
+    func testLoadingWorkflowPresetSelectsFirstOrderedBlock() async throws {
+        let store = WorkflowPresetStore(directoryURL: makeTemporaryDirectory())
+        let firstBlock = EffectBlock.defaultBlock(
+            id: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!,
+            type: .clipping,
+            order: 0
+        )
+        let secondBlock = EffectBlock.defaultBlock(
+            id: UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!,
+            type: .limiter,
+            order: 1
+        )
+        let preset = WorkflowPreset(
+            name: "Selection",
+            workflow: Workflow(name: "Selection", blocks: [secondBlock, firstBlock])
+        )
+        try await store.save(preset)
+        let project = AudioProjectViewModel(
+            modulePresetStore: ModulePresetStore(directoryURL: makeTemporaryDirectory()),
+            workflowPresetStore: store
+        )
+        project.selectedWorkflowPresetID = preset.id
+
+        let didLoad = await project.loadSelectedWorkflowPreset()
+
+        XCTAssertTrue(didLoad)
+        XCTAssertEqual(project.selectedWorkflowBlockID, firstBlock.id)
+        XCTAssertEqual(project.selectedWorkflowBlock?.type, .clipping)
+    }
+
     func testDisabledWorkflowBlockIsBypassedDuringPreviewRender() async throws {
         let project = makeProject()
         project.mode = .workflow
