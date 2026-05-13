@@ -20,7 +20,7 @@ struct ContentView: View {
             }
         }
         .task {
-            await project.refreshModulePresets()
+            await project.refreshPresets()
         }
     }
 
@@ -171,7 +171,7 @@ struct ContentView: View {
             .accessibilityIdentifier("singleModuleEditorSection")
         case .workflow:
             ShellSection(titleKey: "editor.workflow.title", systemImage: "square.stack.3d.up") {
-                PlaceholderEditorText(textKey: "editor.workflow.placeholder")
+                WorkflowEditorView(project: project)
             }
             .accessibilityIdentifier("workflowEditorSection")
         }

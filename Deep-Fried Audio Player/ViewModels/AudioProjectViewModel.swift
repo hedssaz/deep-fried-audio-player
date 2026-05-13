@@ -40,7 +40,15 @@ enum PlaybackState: Equatable {
 
 @MainActor
 final class AudioProjectViewModel: ObservableObject {
-    @Published var mode: AudioProjectMode = .singleModule
+    @Published var mode: AudioProjectMode = .singleModule {
+        didSet {
+            guard oldValue != mode else {
+                return
+            }
+
+            schedulePreviewRenderForCurrentMode()
+        }
+    }
     @Published var originalAudioBuffer: AudioBuffer?
     @Published var processedPreviewBuffer: AudioBuffer?
     @Published var selectedSingleModule = EffectBlock.defaultBlock(
@@ -54,20 +62,29 @@ final class AudioProjectViewModel: ObservableObject {
     @Published var selectedModulePresetID: ModulePreset.ID?
     @Published var modulePresetName = ""
     @Published var singleModuleStatusKey: String?
+    @Published var selectedWorkflowModuleType: EffectType = .sampleRateReduction
+    @Published var workflowPresets: [WorkflowPreset] = []
+    @Published var selectedWorkflowPresetID: WorkflowPreset.ID?
+    @Published var workflowPresetName = ""
+    @Published var workflowStatusKey: String?
 
     let availableSingleModuleTypes = EffectType.firstRealEffectTypes
+    let availableWorkflowModuleTypes = EffectType.firstRealEffectTypes
 
     private let renderer: WorkflowRenderer
     private let modulePresetStore: ModulePresetStore
+    private let workflowPresetStore: WorkflowPresetStore
     private var renderTask: Task<Void, Never>?
     private var activeRenderToken: UUID?
 
     init(
         renderer: WorkflowRenderer = WorkflowRenderer(),
-        modulePresetStore: ModulePresetStore = ModulePresetStore()
+        modulePresetStore: ModulePresetStore = ModulePresetStore(),
+        workflowPresetStore: WorkflowPresetStore = WorkflowPresetStore()
     ) {
         self.renderer = renderer
         self.modulePresetStore = modulePresetStore
+        self.workflowPresetStore = workflowPresetStore
     }
 
     func generateSampleAudio() {
@@ -75,7 +92,7 @@ final class AudioProjectViewModel: ObservableObject {
             originalAudioBuffer = try SampleAudioFactory.makeDevelopmentSample()
             processedPreviewBuffer = nil
             playbackState = .stopped
-            scheduleSingleModulePreviewRender()
+            schedulePreviewRenderForCurrentMode()
         } catch {
             processingState = .failed(message: error.localizedDescription)
         }
@@ -107,6 +124,17 @@ final class AudioProjectViewModel: ObservableObject {
         await renderSingleModulePreviewWithoutCancelling()
     }
 
+    func renderWorkflowPreview() async {
+        renderTask?.cancel()
+        renderTask = nil
+        await renderWorkflowPreviewWithoutCancelling()
+    }
+
+    func refreshPresets() async {
+        await refreshModulePresets()
+        await refreshWorkflowPresets()
+    }
+
     func refreshModulePresets() async {
         do {
             modulePresets = try await modulePresetStore.loadAll()
@@ -116,6 +144,19 @@ final class AudioProjectViewModel: ObservableObject {
             }
         } catch {
             singleModuleStatusKey = "singleModule.presetLoadFailed"
+            processingState = .failed(message: error.localizedDescription)
+        }
+    }
+
+    func refreshWorkflowPresets() async {
+        do {
+            workflowPresets = try await workflowPresetStore.loadAll()
+            if let selectedWorkflowPresetID,
+               !workflowPresets.contains(where: { $0.id == selectedWorkflowPresetID }) {
+                self.selectedWorkflowPresetID = nil
+            }
+        } catch {
+            workflowStatusKey = "workflow.presetLoadFailed"
             processingState = .failed(message: error.localizedDescription)
         }
     }
@@ -181,6 +222,67 @@ final class AudioProjectViewModel: ObservableObject {
         }
     }
 
+    @discardableResult
+    func saveCurrentWorkflowPreset() async -> Bool {
+        let trimmedName = workflowPresetName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            workflowStatusKey = "workflow.presetNameRequired"
+            return false
+        }
+
+        do {
+            let now = Date()
+            let existingPreset = selectedWorkflowPresetID.flatMap { id in
+                workflowPresets.first { $0.id == id }
+            }
+            var workflow = currentWorkflow
+            workflow.name = trimmedName
+            workflow.updatedAt = now
+
+            let preset = WorkflowPreset(
+                id: existingPreset?.id ?? UUID(),
+                name: trimmedName,
+                workflow: workflow,
+                createdAt: existingPreset?.createdAt ?? now,
+                updatedAt: now
+            )
+
+            try await workflowPresetStore.save(preset)
+            workflowPresets = try await workflowPresetStore.loadAll()
+            selectedWorkflowPresetID = preset.id
+            currentWorkflow = workflow
+            workflowPresetName = trimmedName
+            workflowStatusKey = "workflow.presetSaved"
+            return true
+        } catch {
+            workflowStatusKey = "workflow.presetSaveFailed"
+            processingState = .failed(message: error.localizedDescription)
+            return false
+        }
+    }
+
+    @discardableResult
+    func loadSelectedWorkflowPreset() async -> Bool {
+        guard let selectedWorkflowPresetID else {
+            workflowStatusKey = "workflow.presetLoadFailed"
+            return false
+        }
+
+        do {
+            let preset = try await workflowPresetStore.load(id: selectedWorkflowPresetID)
+            currentWorkflow = preset.workflow
+            normalizeWorkflowOrder()
+            workflowPresetName = preset.name
+            workflowStatusKey = "workflow.presetLoaded"
+            scheduleWorkflowPreviewRender()
+            return true
+        } catch {
+            workflowStatusKey = "workflow.presetLoadFailed"
+            processingState = .failed(message: error.localizedDescription)
+            return false
+        }
+    }
+
     func sendSingleModuleToWorkflow() {
         var workflowBlock = selectedSingleModule
         workflowBlock.id = UUID()
@@ -190,6 +292,115 @@ final class AudioProjectViewModel: ObservableObject {
         currentWorkflow.updatedAt = Date()
         mode = .workflow
         singleModuleStatusKey = "singleModule.sentToWorkflow"
+        workflowStatusKey = "workflow.moduleReceived"
+        scheduleWorkflowPreviewRender()
+    }
+
+    func addWorkflowBlock(type: EffectType? = nil) {
+        let blockType = type ?? selectedWorkflowModuleType
+        let block = EffectBlock.defaultBlock(
+            type: blockType,
+            order: nextWorkflowOrder()
+        )
+
+        currentWorkflow.blocks.append(block)
+        markWorkflowChanged()
+    }
+
+    func duplicateWorkflowBlock(id: EffectBlock.ID) {
+        guard let originalBlock = currentWorkflow.blocks.first(where: { $0.id == id }) else {
+            return
+        }
+
+        var duplicatedBlock = originalBlock
+        duplicatedBlock.id = UUID()
+        duplicatedBlock.order = nextWorkflowOrder()
+        currentWorkflow.blocks.append(duplicatedBlock)
+        markWorkflowChanged()
+    }
+
+    func deleteWorkflowBlock(id: EffectBlock.ID) {
+        let originalCount = currentWorkflow.blocks.count
+        currentWorkflow.blocks.removeAll { $0.id == id }
+
+        guard currentWorkflow.blocks.count != originalCount else {
+            return
+        }
+
+        normalizeWorkflowOrder()
+        markWorkflowChanged()
+    }
+
+    func setWorkflowBlockEnabled(id: EffectBlock.ID, isEnabled: Bool) {
+        guard let blockIndex = currentWorkflow.blocks.firstIndex(where: { $0.id == id }),
+              currentWorkflow.blocks[blockIndex].isEnabled != isEnabled else {
+            return
+        }
+
+        currentWorkflow.blocks[blockIndex].isEnabled = isEnabled
+        markWorkflowChanged()
+    }
+
+    func updateWorkflowBlockParameter(
+        blockID: EffectBlock.ID,
+        key: String,
+        value: EffectParameterValue
+    ) {
+        guard let blockIndex = currentWorkflow.blocks.firstIndex(where: { $0.id == blockID }),
+              let parameterIndex = currentWorkflow.blocks[blockIndex].parameters.firstIndex(where: { $0.key == key }) else {
+            return
+        }
+
+        currentWorkflow.blocks[blockIndex].parameters[parameterIndex].value = value
+        currentWorkflow.blocks[blockIndex].presetName = nil
+        markWorkflowChanged()
+    }
+
+    func moveWorkflowBlocks(fromOffsets source: IndexSet, toOffset destination: Int) {
+        guard !source.isEmpty else {
+            return
+        }
+
+        let orderedBlocks = currentWorkflow.orderedBlocks
+        let validSource = IndexSet(source.filter { orderedBlocks.indices.contains($0) })
+        guard !validSource.isEmpty else {
+            return
+        }
+
+        let boundedDestination = min(max(destination, 0), orderedBlocks.count)
+        currentWorkflow.blocks = Self.reorderedBlocks(
+            orderedBlocks,
+            fromOffsets: validSource,
+            toOffset: boundedDestination
+        )
+        renumberWorkflowBlocksInCurrentOrder()
+        markWorkflowChanged()
+    }
+
+    func moveWorkflowBlock(id: EffectBlock.ID, offset: Int) {
+        guard offset != 0,
+              let sourceIndex = currentWorkflow.orderedBlocks.firstIndex(where: { $0.id == id }) else {
+            return
+        }
+
+        let destinationIndex = sourceIndex + offset
+        guard currentWorkflow.orderedBlocks.indices.contains(destinationIndex) else {
+            return
+        }
+
+        currentWorkflow.blocks = currentWorkflow.orderedBlocks
+        currentWorkflow.blocks.swapAt(sourceIndex, destinationIndex)
+        renumberWorkflowBlocksInCurrentOrder()
+        markWorkflowChanged()
+    }
+
+    private func schedulePreviewRenderForCurrentMode() {
+        switch mode {
+        case .singleModule:
+            scheduleSingleModulePreviewRender()
+        case .workflow:
+            scheduleWorkflowPreviewRender()
+        }
     }
 
     private func scheduleSingleModulePreviewRender() {
@@ -197,6 +408,65 @@ final class AudioProjectViewModel: ObservableObject {
         renderTask = Task { [weak self] in
             await self?.renderSingleModulePreviewWithoutCancelling()
         }
+    }
+
+    private func scheduleWorkflowPreviewRender() {
+        guard mode == .workflow else {
+            return
+        }
+
+        renderTask?.cancel()
+        renderTask = Task { [weak self] in
+            await self?.renderWorkflowPreviewWithoutCancelling()
+        }
+    }
+
+    private func markWorkflowChanged() {
+        currentWorkflow.updatedAt = Date()
+        workflowStatusKey = nil
+        selectedWorkflowPresetID = nil
+        scheduleWorkflowPreviewRender()
+    }
+
+    private func nextWorkflowOrder() -> Int {
+        (currentWorkflow.blocks.map(\.order).max() ?? -1) + 1
+    }
+
+    private func normalizeWorkflowOrder() {
+        currentWorkflow.blocks = currentWorkflow.orderedBlocks.enumerated().map { index, block in
+            var normalizedBlock = block
+            normalizedBlock.order = index
+            return normalizedBlock
+        }
+    }
+
+    private func renumberWorkflowBlocksInCurrentOrder() {
+        currentWorkflow.blocks = currentWorkflow.blocks.enumerated().map { index, block in
+            var normalizedBlock = block
+            normalizedBlock.order = index
+            return normalizedBlock
+        }
+    }
+
+    private nonisolated static func reorderedBlocks(
+        _ blocks: [EffectBlock],
+        fromOffsets source: IndexSet,
+        toOffset destination: Int
+    ) -> [EffectBlock] {
+        var result = blocks
+        let movingBlocks = source.sorted().map { result[$0] }
+
+        for index in source.sorted(by: >) {
+            result.remove(at: index)
+        }
+
+        let removedBeforeDestination = source.filter { $0 < destination }.count
+        let adjustedDestination = min(
+            max(destination - removedBeforeDestination, 0),
+            result.count
+        )
+        result.insert(contentsOf: movingBlocks, at: adjustedDestination)
+        return result
     }
 
     private func renderSingleModulePreviewWithoutCancelling() async {
@@ -241,6 +511,46 @@ final class AudioProjectViewModel: ObservableObject {
             processedPreviewBuffer = nil
             processingState = .failed(message: error.localizedDescription)
             singleModuleStatusKey = "singleModule.renderFailed"
+        }
+    }
+
+    private func renderWorkflowPreviewWithoutCancelling() async {
+        guard !Task.isCancelled else {
+            return
+        }
+
+        guard let originalAudioBuffer else {
+            processedPreviewBuffer = nil
+            processingState = .empty
+            return
+        }
+
+        let token = UUID()
+        activeRenderToken = token
+        processingState = .processing(progress: nil)
+
+        do {
+            let output = try await renderer.render(originalAudioBuffer, workflow: currentWorkflow)
+            guard activeRenderToken == token, !Task.isCancelled else {
+                return
+            }
+
+            processedPreviewBuffer = output
+            processingState = .ready
+        } catch is CancellationError {
+            guard activeRenderToken == token else {
+                return
+            }
+
+            processingState = .dirty
+        } catch {
+            guard activeRenderToken == token else {
+                return
+            }
+
+            processedPreviewBuffer = nil
+            processingState = .failed(message: error.localizedDescription)
+            workflowStatusKey = "workflow.renderFailed"
         }
     }
 }
