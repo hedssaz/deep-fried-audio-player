@@ -23,6 +23,7 @@ All notable changes to Deep-Fried Audio Player should be documented in this file
 - Added Step 7 Single Module Mode with a real module picker, dynamic parameter editor, automatic preview rendering, JSON module preset save/load, and a send-to-workflow action.
 - Added Step 8 Workflow Mode with add, duplicate, delete, enable/disable, reorder, inline parameter editing, JSON workflow preset save/load, localized workflow controls, and focused workflow tests.
 - Added Step 9 Audio Import and Recording with AVFoundation file decoding, iOS/iPadOS microphone recording, visible localized source statuses, generated Info.plist microphone usage text, and focused import/recording tests.
+- Added Step 10 Playback with manual original/processed playback, stop control, single-source playback coordination, localized playback statuses, and fake-controller tests that avoid producing sound.
 
 ### Changed
 

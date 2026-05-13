@@ -676,6 +676,102 @@
         }
       }
     },
+    "playback.failed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not play audio."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法播放音频。"
+          }
+        }
+      }
+    },
+    "playback.noOriginal" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import, record, or generate audio before playing original audio."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先导入、录制或生成音频，再播放原始音频。"
+          }
+        }
+      }
+    },
+    "playback.noProcessed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Render a processed preview before playing processed audio."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先渲染处理后预览，再播放处理后音频。"
+          }
+        }
+      }
+    },
+    "playback.playingOriginal" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playing original audio."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在播放原始音频。"
+          }
+        }
+      }
+    },
+    "playback.playingProcessed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playing processed audio."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在播放处理后音频。"
+          }
+        }
+      }
+    },
+    "playback.unavailableWhileRecording" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop recording before playback."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先停止录音，再播放音频。"
+          }
+        }
+      }
+    },
     "processing.dirty" : {
       "localizations" : {
         "en" : {

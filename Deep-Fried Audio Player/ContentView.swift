@@ -164,12 +164,47 @@ struct ContentView: View {
 
     private var playbackControls: some View {
         VStack(alignment: .leading, spacing: 10) {
-            PlaceholderButton(titleKey: "playback.original", systemImage: "play")
-                .accessibilityIdentifier("playOriginalButton")
-            PlaceholderButton(titleKey: "playback.processed", systemImage: "play.fill")
-                .accessibilityIdentifier("playProcessedButton")
-            PlaceholderButton(titleKey: "playback.stop", systemImage: "stop.fill")
-                .accessibilityIdentifier("playbackStopButton")
+            PlaybackButton(
+                titleKey: "playback.original",
+                systemImage: "play",
+                isActive: project.playbackState == .playingOriginal,
+                isDisabled: project.originalAudioBuffer == nil || project.isRecording
+            ) {
+                Task {
+                    await project.playOriginalAudio()
+                }
+            }
+            .accessibilityIdentifier("playOriginalButton")
+
+            PlaybackButton(
+                titleKey: "playback.processed",
+                systemImage: "play.fill",
+                isActive: project.playbackState == .playingProcessed,
+                isDisabled: project.processedPreviewBuffer == nil || project.isRecording
+            ) {
+                Task {
+                    await project.playProcessedAudio()
+                }
+            }
+            .accessibilityIdentifier("playProcessedButton")
+
+            Button {
+                project.stopPlayback()
+            } label: {
+                Label("playback.stop", systemImage: "stop.fill")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.bordered)
+            .tint(.red)
+            .disabled(project.playbackState == .stopped)
+            .accessibilityIdentifier("playbackStopButton")
+
+            if let statusKey = project.playbackStatusKey {
+                Label(LocalizedStringKey(statusKey), systemImage: playbackStatusSystemImage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("playbackStatus")
+            }
         }
     }
 
@@ -264,6 +299,17 @@ struct ContentView: View {
         }
     }
 
+    private var playbackStatusSystemImage: String {
+        switch project.playbackStatusKey {
+        case "playback.playingOriginal", "playback.playingProcessed":
+            return "speaker.wave.2"
+        case "playback.failed", "playback.noOriginal", "playback.noProcessed", "playback.unavailableWhileRecording":
+            return "exclamationmark.triangle"
+        default:
+            return "info.circle"
+        }
+    }
+
     private func handleAudioImportResult(_ result: Result<[URL], Error>) {
         switch result {
         case let .success(urls):
@@ -304,23 +350,27 @@ private struct ShellSection<Content: View>: View {
     }
 }
 
-private struct PlaceholderButton: View {
+private struct PlaybackButton: View {
     let titleKey: String
     let systemImage: String
+    let isActive: Bool
+    let isDisabled: Bool
+    let action: () -> Void
 
     var body: some View {
-        Button {} label: {
+        Button(action: action) {
             HStack(spacing: 12) {
                 Label(LocalizedStringKey(titleKey), systemImage: systemImage)
                 Spacer(minLength: 12)
-                Text("control.unavailable")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if isActive {
+                    Image(systemName: "speaker.wave.2.fill")
+                        .foregroundStyle(.secondary)
+                }
             }
-                .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.bordered)
-        .disabled(true)
+        .disabled(isDisabled)
     }
 }
 
