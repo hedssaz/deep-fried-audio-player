@@ -211,6 +211,10 @@ final class AudioProjectViewModel: ObservableObject {
         audioExportService.isFormatAvailable(.mp3)
     }
 
+    var isM4AExportAvailable: Bool {
+        audioExportService.isFormatAvailable(.m4a)
+    }
+
     func generateSampleAudio() {
         do {
             loadAudioBuffer(
@@ -332,7 +336,7 @@ final class AudioProjectViewModel: ObservableObject {
         }
 
         guard audioExportService.isFormatAvailable(format) else {
-            exportStatusKey = format == .mp3 ? "export.mp3Unavailable" : "export.failed"
+            exportStatusKey = format.unavailableStatusKey
             return nil
         }
 
@@ -340,8 +344,8 @@ final class AudioProjectViewModel: ObservableObject {
             let data = try await audioExportService.export(processedPreviewBuffer, format: format)
             exportStatusKey = nil
             return PreparedAudioExport(format: format, data: data, date: date)
-        } catch AudioExportServiceError.formatUnavailable(.mp3) {
-            exportStatusKey = "export.mp3Unavailable"
+        } catch let AudioExportServiceError.formatUnavailable(format) {
+            exportStatusKey = format.unavailableStatusKey
         } catch AudioExportServiceError.emptyAudio {
             exportStatusKey = "export.noProcessed"
         } catch {

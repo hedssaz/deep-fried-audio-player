@@ -12,6 +12,7 @@ import UniformTypeIdentifiers
 
 nonisolated enum AudioExportFormat: String, CaseIterable, Identifiable, Sendable {
     case wav
+    case m4a
     case mp3
 
     var id: String { rawValue }
@@ -20,6 +21,8 @@ nonisolated enum AudioExportFormat: String, CaseIterable, Identifiable, Sendable
         switch self {
         case .wav:
             "export.wav"
+        case .m4a:
+            "export.m4a"
         case .mp3:
             "export.mp3"
         }
@@ -29,6 +32,8 @@ nonisolated enum AudioExportFormat: String, CaseIterable, Identifiable, Sendable
         switch self {
         case .wav:
             "wav"
+        case .m4a:
+            "m4a"
         case .mp3:
             "mp3"
         }
@@ -45,6 +50,17 @@ nonisolated enum AudioExportFormat: String, CaseIterable, Identifiable, Sendable
         formatter.dateFormat = "yyyyMMdd-HHmmss"
 
         return "deep-fried-processed-\(formatter.string(from: date)).\(fileExtension)"
+    }
+
+    var unavailableStatusKey: String {
+        switch self {
+        case .wav:
+            "export.failed"
+        case .m4a:
+            "export.m4aUnavailable"
+        case .mp3:
+            "export.mp3Unavailable"
+        }
     }
 }
 
@@ -121,6 +137,8 @@ nonisolated struct AudioExportService: AudioExportServicing {
         switch format {
         case .wav:
             true
+        case .m4a:
+            codecCatalog.capability(for: .aac)?.supportsRoundTrip == true
         case .mp3:
             codecCatalog.capability(for: .mp3)?.supportsRoundTrip == true
         }
@@ -144,9 +162,8 @@ nonisolated struct AudioExportService: AudioExportServicing {
             throw AudioExportServiceError.emptyAudio
         }
 
-        if format == .mp3,
-           codecCatalog.capability(for: .mp3)?.supportsRoundTrip != true {
-            throw AudioExportServiceError.formatUnavailable(.mp3)
+        guard isFormatAvailable(format, codecCatalog: codecCatalog) else {
+            throw AudioExportServiceError.formatUnavailable(format)
         }
 
         let fileURL = temporaryFileURL(format: format)
@@ -181,8 +198,21 @@ nonisolated struct AudioExportService: AudioExportServicing {
         switch format {
         case .wav:
             settings = wavSettings(sampleRate: buffer.sampleRate, channelCount: buffer.channelCount)
+        case .m4a:
+            guard let capability = codecCatalog.capability(for: .aac),
+                  capability.supportsRoundTrip,
+                  let audioFormatID = capability.audioFormatID else {
+                throw AudioExportServiceError.formatUnavailable(.m4a)
+            }
+            settings = encodedSettings(
+                audioFormatID: audioFormatID,
+                sampleRate: buffer.sampleRate,
+                channelCount: buffer.channelCount,
+                bitRateKbps: capability.defaultBitRateKbps
+            )
         case .mp3:
             guard let capability = codecCatalog.capability(for: .mp3),
+                  capability.supportsRoundTrip,
                   let audioFormatID = capability.audioFormatID else {
                 throw AudioExportServiceError.formatUnavailable(.mp3)
             }
@@ -220,6 +250,20 @@ nonisolated struct AudioExportService: AudioExportServicing {
             AVLinearPCMIsBigEndianKey: false,
             AVLinearPCMIsNonInterleaved: true,
         ]
+    }
+
+    private static func isFormatAvailable(
+        _ format: AudioExportFormat,
+        codecCatalog: CodecCapabilityCatalog
+    ) -> Bool {
+        switch format {
+        case .wav:
+            true
+        case .m4a:
+            codecCatalog.capability(for: .aac)?.supportsRoundTrip == true
+        case .mp3:
+            codecCatalog.capability(for: .mp3)?.supportsRoundTrip == true
+        }
     }
 
     private static func encodedSettings(

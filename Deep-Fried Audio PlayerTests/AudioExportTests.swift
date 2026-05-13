@@ -30,6 +30,52 @@ final class AudioExportTests: XCTestCase {
     }
 
     @MainActor
+    func testM4AExportWritesDecodableAudioWhenAvailable() async throws {
+        let service = AudioExportService()
+        guard service.isFormatAvailable(.m4a) else {
+            throw XCTSkip("M4A export is unavailable in this environment.")
+        }
+
+        let input = try SampleAudioFactory.makeDevelopmentSample(
+            duration: 0.08,
+            sampleRate: 44_100,
+            channelCount: 2
+        )
+        let data = try await service.export(input, format: .m4a)
+        let output = try decode(data: data, extension: "m4a")
+
+        XCTAssertFalse(data.isEmpty)
+        XCTAssertGreaterThan(output.frames, 0)
+        XCTAssertGreaterThan(output.channelCount, 0)
+        XCTAssertTrue(output.samples.flatMap { $0 }.allSatisfy(\.isFinite))
+    }
+
+    @MainActor
+    func testM4AExportIsUnavailableWhenAACCapabilityIsUnavailable() async throws {
+        let service = AudioExportService(codecCatalog: CodecCapabilityCatalog(capabilities: [
+            CodecCapability(
+                id: .aac,
+                status: .unavailable,
+                audioFormatID: kAudioFormatMPEG4AAC,
+                fileExtension: "m4a",
+                defaultBitRateKbps: 64,
+                bitRateRange: CodecBitRateRange(minKbps: 64, maxKbps: 320),
+                unavailableReasonKey: "codec.reason.unavailableOnDevice"
+            ),
+        ]))
+        let input = try SampleAudioFactory.makeDevelopmentSample(duration: 0.05)
+
+        XCTAssertFalse(service.isFormatAvailable(.m4a))
+
+        do {
+            _ = try await service.export(input, format: .m4a)
+            XCTFail("Expected M4A export to be unavailable.")
+        } catch AudioExportServiceError.formatUnavailable(.m4a) {
+            // Expected.
+        }
+    }
+
+    @MainActor
     func testMP3ExportIsUnavailableWhenCodecCapabilityIsUnavailable() async throws {
         let service = AudioExportService(codecCatalog: CodecCapabilityCatalog(capabilities: [
             CodecCapability(
@@ -108,6 +154,47 @@ final class AudioExportTests: XCTestCase {
         XCTAssertTrue(preparedExport.defaultFileName.hasSuffix(".wav"))
         XCTAssertNil(project.exportStatusKey)
         XCTAssertEqual(exportService.exportCallCount, 1)
+    }
+
+    @MainActor
+    func testPreparingProcessedM4AExportReturnsDocumentPayload() async throws {
+        let exportedData = Data([0x4D, 0x34, 0x41])
+        let exportService = FakeAudioExportService(
+            availableFormats: [.m4a],
+            exportData: exportedData
+        )
+        let project = AudioProjectViewModel(audioExportService: exportService)
+        project.processedPreviewBuffer = try SampleAudioFactory.makeDevelopmentSample(duration: 0.05)
+
+        let export = await project.prepareProcessedExport(
+            format: .m4a,
+            date: Date(timeIntervalSince1970: 1_800_000_000)
+        )
+
+        let preparedExport = try XCTUnwrap(export)
+        XCTAssertEqual(preparedExport.format, .m4a)
+        XCTAssertEqual(preparedExport.document.data, exportedData)
+        XCTAssertTrue(preparedExport.defaultFileName.hasPrefix("deep-fried-processed-"))
+        XCTAssertTrue(preparedExport.defaultFileName.hasSuffix(".m4a"))
+        XCTAssertNil(project.exportStatusKey)
+        XCTAssertEqual(exportService.exportCallCount, 1)
+    }
+
+    @MainActor
+    func testPreparingUnavailableM4AExportReportsStatusWithoutExporting() async throws {
+        let exportService = FakeAudioExportService(
+            availableFormats: [.wav],
+            exportData: Data([0x01])
+        )
+        let project = AudioProjectViewModel(audioExportService: exportService)
+        project.processedPreviewBuffer = try SampleAudioFactory.makeDevelopmentSample(duration: 0.05)
+
+        let export = await project.prepareProcessedExport(format: .m4a)
+
+        XCTAssertNil(export)
+        XCTAssertFalse(project.isM4AExportAvailable)
+        XCTAssertEqual(project.exportStatusKey, "export.m4aUnavailable")
+        XCTAssertEqual(exportService.exportCallCount, 0)
     }
 
     @MainActor

@@ -220,6 +220,11 @@ struct ContentView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("exportStatus")
+            } else if project.canExportProcessedAudio && !project.isM4AExportAvailable {
+                Label("export.m4aUnavailable", systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("exportStatus")
             } else if project.canExportProcessedAudio && !project.isMP3ExportAvailable {
                 Label("export.mp3Unavailable", systemImage: "info.circle")
                     .font(.caption)
@@ -245,6 +250,14 @@ struct ContentView: View {
             }
             .disabled(!project.canExportProcessedAudio)
             .accessibilityIdentifier("exportWAVButton")
+
+            Button {
+                prepareAudioExport(.m4a)
+            } label: {
+                Label(LocalizedStringKey(AudioExportFormat.m4a.labelKey), systemImage: "waveform.badge.plus")
+            }
+            .disabled(!project.canExportProcessedAudio || !project.isM4AExportAvailable)
+            .accessibilityIdentifier("exportM4AButton")
 
             Button {
                 prepareAudioExport(.mp3)

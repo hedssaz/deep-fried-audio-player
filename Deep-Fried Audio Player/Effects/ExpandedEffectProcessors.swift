@@ -529,22 +529,13 @@ nonisolated struct SpectralDamageProcessor: ProgressReportingEffectProcessor {
             return input
         }
 
-        guard let forwardSetup = vDSP_DFT_zop_CreateSetup(
-            nil,
-            vDSP_Length(powerOfTwoWindowSize),
-            vDSP_DFT_Direction.FORWARD
-        ),
-              let inverseSetup = vDSP_DFT_zop_CreateSetup(
-                nil,
-                vDSP_Length(powerOfTwoWindowSize),
-                vDSP_DFT_Direction.INVERSE
-              ) else {
+        let log2WindowSize = vDSP_Length(powerOfTwoWindowSize.trailingZeroBitCount)
+        guard let fftSetup = vDSP_create_fftsetup(log2WindowSize, FFTRadix(kFFTRadix2)) else {
             progress(EffectProcessorProgress(fractionCompleted: 1))
             return input
         }
         defer {
-            vDSP_DFT_DestroySetup(forwardSetup)
-            vDSP_DFT_DestroySetup(inverseSetup)
+            vDSP_destroy_fftsetup(fftSetup)
         }
 
         let hopSize = max(1, Int((Double(powerOfTwoWindowSize) * (1.0 - overlap)).rounded()))
@@ -572,8 +563,8 @@ nonisolated struct SpectralDamageProcessor: ProgressReportingEffectProcessor {
                     componentCount: componentCount,
                     minFrequency: minFrequency,
                     maxFrequency: maxFrequency,
-                    forwardSetup: forwardSetup,
-                    inverseSetup: inverseSetup,
+                    fftSetup: fftSetup,
+                    log2WindowSize: log2WindowSize,
                     completedWindowCount: &completedWindowCount,
                     reporter: &reporter,
                     progress: progress
@@ -598,41 +589,45 @@ nonisolated struct SpectralDamageProcessor: ProgressReportingEffectProcessor {
         componentCount: Int,
         minFrequency: Double,
         maxFrequency: Double,
-        forwardSetup: vDSP_DFT_Setup,
-        inverseSetup: vDSP_DFT_Setup,
+        fftSetup: FFTSetup,
+        log2WindowSize: vDSP_Length,
         completedWindowCount: inout Int,
         reporter: inout EffectProgressReporter,
         progress: @escaping @Sendable (EffectProcessorProgress) -> Void
     ) -> [Float] {
         let window = hannWindow(size: windowSize)
+        let halfWindowSize = windowSize / 2
         var output = [Float](repeating: 0, count: samples.count)
         var weights = [Float](repeating: 0, count: samples.count)
         var start = 0
 
         repeat {
-            var realInput = [Float](repeating: 0, count: windowSize)
-            let imaginaryInput = [Float](repeating: 0, count: windowSize)
-            var realSpectrum = [Float](repeating: 0, count: windowSize)
-            var imaginarySpectrum = [Float](repeating: 0, count: windowSize)
+            var realSpectrum = [Float](repeating: 0, count: halfWindowSize)
+            var imaginarySpectrum = [Float](repeating: 0, count: halfWindowSize)
 
-            for frameOffset in 0..<windowSize {
-                let sampleIndex = start + frameOffset
-                guard sampleIndex < samples.count else {
-                    break
+            for packedIndex in 0..<halfWindowSize {
+                let evenFrameOffset = packedIndex * 2
+                let evenSampleIndex = start + evenFrameOffset
+                if evenSampleIndex < samples.count {
+                    realSpectrum[packedIndex] = samples[evenSampleIndex] * window[evenFrameOffset]
                 }
 
-                realInput[frameOffset] = samples[sampleIndex] * window[frameOffset]
+                let oddFrameOffset = evenFrameOffset + 1
+                let oddSampleIndex = start + oddFrameOffset
+                if oddSampleIndex < samples.count {
+                    imaginarySpectrum[packedIndex] = samples[oddSampleIndex] * window[oddFrameOffset]
+                }
             }
 
-            vDSP_DFT_Execute(
-                forwardSetup,
-                realInput,
-                imaginaryInput,
-                &realSpectrum,
-                &imaginarySpectrum
+            transformPackedRealFFT(
+                setup: fftSetup,
+                real: &realSpectrum,
+                imaginary: &imaginarySpectrum,
+                log2WindowSize: log2WindowSize,
+                direction: FFTDirection(FFT_FORWARD)
             )
 
-            keepTopComponents(
+            keepTopPackedComponents(
                 real: &realSpectrum,
                 imaginary: &imaginarySpectrum,
                 sampleRate: sampleRate,
@@ -642,17 +637,15 @@ nonisolated struct SpectralDamageProcessor: ProgressReportingEffectProcessor {
                 maxFrequency: maxFrequency
             )
 
-            var realOutput = [Float](repeating: 0, count: windowSize)
-            var imaginaryOutput = [Float](repeating: 0, count: windowSize)
-            vDSP_DFT_Execute(
-                inverseSetup,
-                realSpectrum,
-                imaginarySpectrum,
-                &realOutput,
-                &imaginaryOutput
+            transformPackedRealFFT(
+                setup: fftSetup,
+                real: &realSpectrum,
+                imaginary: &imaginarySpectrum,
+                log2WindowSize: log2WindowSize,
+                direction: FFTDirection(FFT_INVERSE)
             )
 
-            let normalization = Float(windowSize)
+            let normalization = Float(windowSize * 2)
             for frameOffset in 0..<windowSize {
                 let sampleIndex = start + frameOffset
                 guard sampleIndex < samples.count else {
@@ -660,7 +653,11 @@ nonisolated struct SpectralDamageProcessor: ProgressReportingEffectProcessor {
                 }
 
                 let weightedWindow = window[frameOffset] * window[frameOffset]
-                output[sampleIndex] += (realOutput[frameOffset] / normalization) * window[frameOffset]
+                let packedIndex = frameOffset / 2
+                let transformedSample = frameOffset.isMultiple(of: 2)
+                    ? realSpectrum[packedIndex]
+                    : imaginarySpectrum[packedIndex]
+                output[sampleIndex] += (transformedSample / normalization) * window[frameOffset]
                 weights[sampleIndex] += weightedWindow
             }
 
@@ -705,7 +702,30 @@ nonisolated struct SpectralDamageProcessor: ProgressReportingEffectProcessor {
         return count
     }
 
-    private func keepTopComponents(
+    private func transformPackedRealFFT(
+        setup: FFTSetup,
+        real: inout [Float],
+        imaginary: inout [Float],
+        log2WindowSize: vDSP_Length,
+        direction: FFTDirection
+    ) {
+        real.withUnsafeMutableBufferPointer { realBuffer in
+            imaginary.withUnsafeMutableBufferPointer { imaginaryBuffer in
+                guard let realBaseAddress = realBuffer.baseAddress,
+                      let imaginaryBaseAddress = imaginaryBuffer.baseAddress else {
+                    return
+                }
+
+                var splitComplex = DSPSplitComplex(
+                    realp: realBaseAddress,
+                    imagp: imaginaryBaseAddress
+                )
+                vDSP_fft_zrip(setup, &splitComplex, 1, log2WindowSize, direction)
+            }
+        }
+    }
+
+    private func keepTopPackedComponents(
         real: inout [Float],
         imaginary: inout [Float],
         sampleRate: Double,
@@ -731,14 +751,11 @@ nonisolated struct SpectralDamageProcessor: ProgressReportingEffectProcessor {
                 .map(\.bin)
         )
 
-        for bin in 0..<windowSize {
-            let mirroredBin = bin == 0 ? 0 : windowSize - bin
-            let shouldKeep = keptBins.contains(bin) || keptBins.contains(mirroredBin)
-
-            if !shouldKeep {
-                real[bin] = 0
-                imaginary[bin] = 0
-            }
+        real[0] = 0
+        imaginary[0] = 0
+        for bin in 1..<halfWindow where !keptBins.contains(bin) {
+            real[bin] = 0
+            imaginary[bin] = 0
         }
     }
 

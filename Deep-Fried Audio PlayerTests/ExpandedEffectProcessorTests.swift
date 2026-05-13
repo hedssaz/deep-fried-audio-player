@@ -5,6 +5,7 @@
 //  Created by Codex on 2026/5/13.
 //
 
+import Accelerate
 import XCTest
 @testable import Deep_Fried_Audio_Player
 
@@ -122,6 +123,54 @@ final class ExpandedEffectProcessorTests: XCTestCase {
         XCTAssertNotEqual(sparseOutput.samples, denserOutput.samples)
     }
 
+    func testSpectralDamageFFTMatchesDFTReferenceAcrossParameterCombinations() throws {
+        let input = try makeMultiToneBuffer()
+        let processor = try XCTUnwrap(EffectProcessorRegistry.builtIn.processor(for: .spectralDamage))
+        let frequencyRanges: [(min: Double?, max: Double?)] = [
+            (nil, nil),
+            (400, 7_500),
+        ]
+
+        for componentCount in [2, 12, 24] {
+            for windowSize in [256, 512, 1_024] {
+                for overlap in [0.0, 0.5, 0.875] {
+                    for frequencyRange in frequencyRanges {
+                        var block = EffectBlock.defaultBlock(type: .spectralDamage, order: 0)
+                        setParameter(&block, key: EffectParameterKey.componentCount, value: .int(componentCount))
+                        setParameter(&block, key: EffectParameterKey.windowSize, value: .choice(String(windowSize)))
+                        setParameter(&block, key: EffectParameterKey.overlap, value: .float(overlap))
+
+                        if let minFrequency = frequencyRange.min,
+                           let maxFrequency = frequencyRange.max {
+                            setParameter(&block, key: EffectParameterKey.minFrequency, value: .float(minFrequency))
+                            setParameter(&block, key: EffectParameterKey.maxFrequency, value: .float(maxFrequency))
+                        }
+
+                        let actual = try processor.process(input, block: block)
+                        let expected = try spectralDamageDFTReference(input, block: block)
+                        let stats = differenceStats(actual.samples, expected.samples)
+                        let minFrequencyDescription = frequencyRange.min.map { String($0) } ?? "default"
+                        let maxFrequencyDescription = frequencyRange.max.map { String($0) } ?? "default"
+                        let configuration = [
+                            "componentCount=\(componentCount)",
+                            "windowSize=\(windowSize)",
+                            "overlap=\(overlap)",
+                            "minFrequency=\(minFrequencyDescription)",
+                            "maxFrequency=\(maxFrequencyDescription)",
+                        ].joined(separator: ", ")
+
+                        XCTAssertEqual(actual.sampleRate, expected.sampleRate, configuration)
+                        XCTAssertEqual(actual.channelCount, expected.channelCount, configuration)
+                        XCTAssertEqual(actual.frames, expected.frames, configuration)
+                        XCTAssertTrue(actual.samples.flatMap { $0 }.allSatisfy(\.isFinite), configuration)
+                        XCTAssertLessThanOrEqual(stats.maxAbs, 0.000_1, configuration)
+                        XCTAssertLessThanOrEqual(stats.rms, 0.000_01, configuration)
+                    }
+                }
+            }
+        }
+    }
+
     func testExpandedEffectProgressReportingMatchesPlainOutputForRepresentativeBlocks() throws {
         let input = try makeMultiToneBuffer()
         var spectralBlock = EffectBlock.defaultBlock(type: .spectralDamage, order: 0)
@@ -212,6 +261,262 @@ final class ExpandedEffectProcessorTests: XCTestCase {
 
     private func peak(_ samples: [Float]) -> Float {
         samples.map(abs).max() ?? 0
+    }
+
+    private func spectralDamageDFTReference(
+        _ input: AudioBuffer,
+        block: EffectBlock
+    ) throws -> AudioBuffer {
+        let modeValue = try block.choiceParameter(
+            EffectParameterKey.mode,
+            default: SpectralDamageMode.keepTopKFrequencyBins.rawValue
+        )
+        guard SpectralDamageMode(rawValue: modeValue) == .keepTopKFrequencyBins else {
+            throw EffectProcessorError.invalidParameter(
+                key: EffectParameterKey.mode,
+                expected: SpectralDamageMode.keepTopKFrequencyBins.rawValue
+            )
+        }
+
+        let componentCount = try block.intParameter(EffectParameterKey.componentCount, default: 12)
+            .clamped(to: 1...256)
+        let windowSize = try block.intParameter(EffectParameterKey.windowSize, default: 512)
+            .clamped(to: 128...2_048)
+        let powerOfTwoWindowSize = previousPowerOfTwo(windowSize)
+        let overlap = try block.doubleParameter(EffectParameterKey.overlap, default: 0.5)
+            .clamped(to: 0.0...0.875)
+        let minFrequency = try block.doubleParameter(EffectParameterKey.minFrequency, default: 80.0)
+            .clamped(to: 0.0...(input.sampleRate * 0.49))
+        let maxFrequency = try block.doubleParameter(EffectParameterKey.maxFrequency, default: 12_000.0)
+            .clamped(to: minFrequency...(input.sampleRate * 0.49))
+        _ = try block.boolParameter(EffectParameterKey.preservePhase, default: true)
+        let mix = Float(
+            try block.doubleParameter(EffectParameterKey.mix, default: 1.0)
+                .clamped(to: 0.0...1.0)
+        )
+
+        guard mix > 0, input.frames > 0 else {
+            return input
+        }
+
+        guard let forwardSetup = vDSP_DFT_zop_CreateSetup(
+            nil,
+            vDSP_Length(powerOfTwoWindowSize),
+            vDSP_DFT_Direction.FORWARD
+        ),
+              let inverseSetup = vDSP_DFT_zop_CreateSetup(
+                nil,
+                vDSP_Length(powerOfTwoWindowSize),
+                vDSP_DFT_Direction.INVERSE
+              ) else {
+            return input
+        }
+        defer {
+            vDSP_DFT_DestroySetup(forwardSetup)
+            vDSP_DFT_DestroySetup(inverseSetup)
+        }
+
+        let hopSize = max(1, Int((Double(powerOfTwoWindowSize) * (1.0 - overlap)).rounded()))
+        let wetSamples = input.samples.map { channelSamples in
+            referenceKeepTopKFrequencyBins(
+                channelSamples,
+                sampleRate: input.sampleRate,
+                windowSize: powerOfTwoWindowSize,
+                hopSize: hopSize,
+                componentCount: componentCount,
+                minFrequency: minFrequency,
+                maxFrequency: maxFrequency,
+                forwardSetup: forwardSetup,
+                inverseSetup: inverseSetup
+            )
+        }
+
+        return try AudioBuffer(
+            sampleRate: input.sampleRate,
+            channelCount: input.channelCount,
+            frames: input.frames,
+            samples: referenceBlend(dry: input.samples, wet: wetSamples, mix: mix)
+        )
+    }
+
+    private func referenceKeepTopKFrequencyBins(
+        _ samples: [Float],
+        sampleRate: Double,
+        windowSize: Int,
+        hopSize: Int,
+        componentCount: Int,
+        minFrequency: Double,
+        maxFrequency: Double,
+        forwardSetup: vDSP_DFT_Setup,
+        inverseSetup: vDSP_DFT_Setup
+    ) -> [Float] {
+        let window = hannWindow(size: windowSize)
+        var output = [Float](repeating: 0, count: samples.count)
+        var weights = [Float](repeating: 0, count: samples.count)
+        var start = 0
+
+        repeat {
+            var realInput = [Float](repeating: 0, count: windowSize)
+            let imaginaryInput = [Float](repeating: 0, count: windowSize)
+            var realSpectrum = [Float](repeating: 0, count: windowSize)
+            var imaginarySpectrum = [Float](repeating: 0, count: windowSize)
+
+            for frameOffset in 0..<windowSize {
+                let sampleIndex = start + frameOffset
+                guard sampleIndex < samples.count else {
+                    break
+                }
+
+                realInput[frameOffset] = samples[sampleIndex] * window[frameOffset]
+            }
+
+            vDSP_DFT_Execute(
+                forwardSetup,
+                realInput,
+                imaginaryInput,
+                &realSpectrum,
+                &imaginarySpectrum
+            )
+
+            referenceKeepTopComponents(
+                real: &realSpectrum,
+                imaginary: &imaginarySpectrum,
+                sampleRate: sampleRate,
+                windowSize: windowSize,
+                componentCount: componentCount,
+                minFrequency: minFrequency,
+                maxFrequency: maxFrequency
+            )
+
+            var realOutput = [Float](repeating: 0, count: windowSize)
+            var imaginaryOutput = [Float](repeating: 0, count: windowSize)
+            vDSP_DFT_Execute(
+                inverseSetup,
+                realSpectrum,
+                imaginarySpectrum,
+                &realOutput,
+                &imaginaryOutput
+            )
+
+            let normalization = Float(windowSize)
+            for frameOffset in 0..<windowSize {
+                let sampleIndex = start + frameOffset
+                guard sampleIndex < samples.count else {
+                    break
+                }
+
+                let weightedWindow = window[frameOffset] * window[frameOffset]
+                output[sampleIndex] += (realOutput[frameOffset] / normalization) * window[frameOffset]
+                weights[sampleIndex] += weightedWindow
+            }
+
+            if start + windowSize >= samples.count {
+                break
+            }
+
+            start += hopSize
+        } while start < samples.count
+
+        return output.indices.map { index in
+            let weight = weights[index]
+            guard weight > 0.000_001 else {
+                return samples[index]
+            }
+
+            return output[index] / weight
+        }
+    }
+
+    private func referenceKeepTopComponents(
+        real: inout [Float],
+        imaginary: inout [Float],
+        sampleRate: Double,
+        windowSize: Int,
+        componentCount: Int,
+        minFrequency: Double,
+        maxFrequency: Double
+    ) {
+        let halfWindow = windowSize / 2
+        let candidates = (1..<halfWindow).compactMap { bin -> (bin: Int, magnitude: Float)? in
+            let frequency = Double(bin) * sampleRate / Double(windowSize)
+            guard frequency >= minFrequency, frequency <= maxFrequency else {
+                return nil
+            }
+
+            let magnitude = hypot(real[bin], imaginary[bin])
+            return (bin, magnitude)
+        }
+        let keptBins = Set(
+            candidates
+                .sorted { $0.magnitude > $1.magnitude }
+                .prefix(componentCount)
+                .map(\.bin)
+        )
+
+        for bin in 0..<windowSize {
+            let mirroredBin = bin == 0 ? 0 : windowSize - bin
+            let shouldKeep = keptBins.contains(bin) || keptBins.contains(mirroredBin)
+
+            if !shouldKeep {
+                real[bin] = 0
+                imaginary[bin] = 0
+            }
+        }
+    }
+
+    private func referenceBlend(
+        dry: [[Float]],
+        wet: [[Float]],
+        mix: Float
+    ) -> [[Float]] {
+        let clampedMix = mix.clamped(to: 0...1)
+
+        return zip(dry, wet).map { dryChannel, wetChannel in
+            zip(dryChannel, wetChannel).map { drySample, wetSample in
+                (drySample * (1 - clampedMix)) + (wetSample * clampedMix)
+            }
+        }
+    }
+
+    private func differenceStats(
+        _ lhs: [[Float]],
+        _ rhs: [[Float]]
+    ) -> (maxAbs: Float, rms: Float) {
+        var maxAbs = Float.zero
+        var sumSquares = Double.zero
+        var count = 0
+
+        for (lhsChannel, rhsChannel) in zip(lhs, rhs) {
+            for (lhsSample, rhsSample) in zip(lhsChannel, rhsChannel) {
+                let difference = lhsSample - rhsSample
+                maxAbs = max(maxAbs, abs(difference))
+                sumSquares += Double(difference * difference)
+                count += 1
+            }
+        }
+
+        let rms = count > 0 ? Float(sqrt(sumSquares / Double(count))) : 0
+        return (maxAbs, rms)
+    }
+
+    private func hannWindow(size: Int) -> [Float] {
+        guard size > 1 else {
+            return [1]
+        }
+
+        return (0..<size).map { index in
+            Float(0.5 - (0.5 * cos((2.0 * Double.pi * Double(index)) / Double(size - 1))))
+        }
+    }
+
+    private func previousPowerOfTwo(_ value: Int) -> Int {
+        var power = 1
+
+        while power * 2 <= value {
+            power *= 2
+        }
+
+        return max(128, power)
     }
 
     private func makeMultiToneBuffer() throws -> AudioBuffer {

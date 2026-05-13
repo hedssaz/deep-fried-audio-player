@@ -804,6 +804,38 @@
         }
       }
     },
+    "export.m4a" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export M4A"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出 M4A"
+          }
+        }
+      }
+    },
+    "export.m4aUnavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "M4A export is unavailable on this device."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前设备不可导出 M4A。"
+          }
+        }
+      }
+    },
     "export.menu" : {
       "localizations" : {
         "en" : {
