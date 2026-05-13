@@ -23,7 +23,10 @@ extension EffectProcessorRegistry {
         SampleRateReductionProcessor(),
         BitDepthReductionProcessor(),
         ClippingProcessor(),
+        FilterEQProcessor(),
+        CompressorProcessor(),
         LimiterProcessor(),
+        SpectralDamageProcessor(),
     ])
 }
 
@@ -151,7 +154,7 @@ nonisolated struct LimiterProcessor: EffectProcessor {
     }
 }
 
-private extension EffectBlock {
+extension EffectBlock {
     nonisolated func doubleParameter(_ key: String, default defaultValue: Double) throws -> Double {
         guard let value = parameters.first(where: { $0.key == key })?.value else {
             return defaultValue
@@ -219,9 +222,70 @@ private extension EffectBlock {
             )
         }
     }
+
+    nonisolated func choiceParameter(_ key: String, default defaultValue: String) throws -> String {
+        guard let value = parameters.first(where: { $0.key == key })?.value else {
+            return defaultValue
+        }
+
+        switch value {
+        case let .choice(value):
+            return value
+        case let .int(value):
+            return String(value)
+        case let .float(value):
+            guard value.isFinite else {
+                throw EffectProcessorError.invalidParameter(
+                    key: key,
+                    expected: "a finite choice value"
+                )
+            }
+            return String(value)
+        case .bool, .range:
+            throw EffectProcessorError.invalidParameter(
+                key: key,
+                expected: "a choice value"
+            )
+        }
+    }
+
+    nonisolated func rangeParameter(
+        _ key: String,
+        default defaultValue: EffectParameterRangeValue
+    ) throws -> EffectParameterRangeValue {
+        guard let value = parameters.first(where: { $0.key == key })?.value else {
+            return defaultValue
+        }
+
+        guard case let .range(value) = value,
+              value.lowerBound.isFinite,
+              value.upperBound.isFinite else {
+            throw EffectProcessorError.invalidParameter(
+                key: key,
+                expected: "a finite range value"
+            )
+        }
+
+        return value
+    }
+
+    nonisolated func boolParameter(_ key: String, default defaultValue: Bool) throws -> Bool {
+        guard let value = parameters.first(where: { $0.key == key })?.value else {
+            return defaultValue
+        }
+
+        guard case let .bool(value) = value else {
+            throw EffectProcessorError.invalidParameter(
+                key: key,
+                expected: "a boolean value"
+            )
+        }
+
+        return value
+    }
 }
 
-private extension Comparable {
+extension Comparable {
     nonisolated func clamped(to range: ClosedRange<Self>) -> Self {
         min(max(self, range.lowerBound), range.upperBound)
     }

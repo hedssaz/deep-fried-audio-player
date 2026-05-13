@@ -18,6 +18,15 @@ final class FirstEffectProcessorTests: XCTestCase {
         }
     }
 
+    func testBuiltInRegistryDoesNotRegisterLegacyIndividualFilterCases() {
+        for type in EffectType.legacyIndividualFilterTypes {
+            XCTAssertNil(
+                EffectProcessorRegistry.builtIn.processor(for: type),
+                "\(type.rawValue) should remain decode-only and not be registered as a user-facing processor."
+            )
+        }
+    }
+
     func testDefaultFirstRealEffectBlocksExposeEditableParameters() {
         for type in EffectType.firstRealEffectTypes {
             let block = EffectBlock.defaultBlock(type: type, order: 0)
@@ -29,10 +38,9 @@ final class FirstEffectProcessorTests: XCTestCase {
             for parameter in block.parameters {
                 XCTAssertFalse(parameter.key.isEmpty)
                 XCTAssertFalse(parameter.labelKey.isEmpty)
-                XCTAssertNotNil(parameter.unitKey)
                 XCTAssertTrue(
-                    parameter.valueRange != nil || !parameter.choices.isEmpty,
-                    "\(parameter.key) should define either a numeric range or choices."
+                    parameter.valueRange != nil || !parameter.choices.isEmpty || parameter.value.kind == .bool,
+                    "\(parameter.key) should define either a numeric range, choices, or a boolean value."
                 )
             }
         }

@@ -137,7 +137,7 @@ protocol EffectProcessor {
 - processor 输出长度、采样率或声道数如有变化，必须符合该效果的定义。
 - codec 类效果必须区分真实 encode/decode 往返和不可用状态；不要把模拟结果标成真实 codec 输出。
 
-第一阶段优先实现不依赖外部 codec 的模块，例如 Sample Rate Reduction、Bit Depth Reduction、Clipping、Low-pass、High-pass、Band-pass、Notch、Compressor 和 Limiter。Low Quality Codec 和 Bitrate Reduction 应在 codec capability layer 明确后再实现。
+第一阶段优先实现不依赖外部 codec 的模块，例如 Sample Rate Reduction、Bit Depth Reduction、Clipping、Filter / EQ、Compressor、Limiter 和 Spectral Damage。Filter / EQ 是一个用户可见模块族，通过 mode 参数覆盖 Low-pass、High-pass、Band-pass、Notch 和 Random Frequency Response；旧的单独 filter 类型如保留，只用于 Codable 迁移或开发数据解码，不应作为独立用户模块暴露。Low Quality Codec 和 Bitrate Reduction 应在 codec capability layer 明确后再实现。
 
 ## AudioPlaybackController
 

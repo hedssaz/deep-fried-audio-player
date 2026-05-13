@@ -180,13 +180,14 @@ private struct WorkflowBlockRow: View {
             )
             .accessibilityIdentifier("workflowBlockEnabled.\(block.id.uuidString)")
 
-            if block.parameters.isEmpty {
+            let visibleParameters = block.visibleParameters
+            if visibleParameters.isEmpty {
                 Text("workflow.noParameters")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             } else {
                 VStack(alignment: .leading, spacing: 10) {
-                    ForEach(block.parameters) { parameter in
+                    ForEach(visibleParameters) { parameter in
                         EffectParameterEditor(parameter: parameter) { value in
                             project.updateWorkflowBlockParameter(
                                 blockID: block.id,

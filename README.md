@@ -52,16 +52,12 @@ Deep-Fried Audio Player 是一个 iOS / iPadOS 优先的 SwiftUI 音频处理 Ap
 - Bitrate Reduction：降低码率，例如 `320/128/64/32/16/8 kbps`。
 - Low Quality Codec：真实编码往返优先，覆盖 MP3、AAC、Opus、AMR-NB、Speex、G.711、G.729；不可用 codec 必须明确显示不可用或后续支持。
 - Sample Rate Reduction：降低采样率，例如 `44100/22050/16000/11025/8000 Hz`。
-- Low-pass：砍掉高频。
-- High-pass：砍掉低频。
-- Band-pass：只保留中间频段。
-- Notch：挖掉指定频率附近的声音。
-- Random Frequency Response：让不同频段随机变大或变小。
+- Filter / EQ：统一滤波和均衡模块，用于制造电话、隔墙、廉价耳机、坏音箱、烂麦等频率响应变化。模式包括 Low-pass、High-pass、Band-pass、Notch 和 Random Frequency Response；常用参数包括 `mode`、`cutoff` / `lowCut` / `highCut` / `centerFrequency`、`resonance` / `Q`、`slope`、`gainRange`、`bandCount`、`seed` 和 `mix`。
 - Bit Depth Reduction：降低位深，例如 `16/8/6/4/2-bit`。
 - Clipping：硬削波，制造爆麦和 deep-fried 失真。
 - Compressor：过度压缩动态范围。
 - Limiter：拉高响度并限制峰值。
-- FFT / Spectral Damage：频域破坏模块族，作为可选模块，不是核心路线。
+- Spectral Damage：首版为 Keep Top-K Frequency Bins，只保留最强的若干频率成分并保留相位；后续再扩展其他频域破坏模式。
 
 ## Current Project Layout
 

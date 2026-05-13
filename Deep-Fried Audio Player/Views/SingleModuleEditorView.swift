@@ -49,12 +49,13 @@ struct SingleModuleEditorView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            if project.selectedSingleModule.parameters.isEmpty {
+            let visibleParameters = project.selectedSingleModule.visibleParameters
+            if visibleParameters.isEmpty {
                 Text("singleModule.noParameters")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(project.selectedSingleModule.parameters) { parameter in
+                ForEach(visibleParameters) { parameter in
                     EffectParameterEditor(parameter: parameter) { value in
                         project.updateSingleModuleParameter(key: parameter.key, value: value)
                     }

@@ -30,7 +30,10 @@ struct EffectParameterEditor: View {
 
     @ViewBuilder
     private var parameterValueText: some View {
-        if let unitKey = parameter.unitKey {
+        if case .choice = parameter.value,
+           let choice = selectedChoice {
+            Text(LocalizedStringKey(choice.labelKey))
+        } else if let unitKey = parameter.unitKey {
             HStack(spacing: 3) {
                 Text(verbatim: formattedValue)
                 Text(LocalizedStringKey(unitKey))
@@ -45,7 +48,7 @@ struct EffectParameterEditor: View {
         switch parameter.value {
         case .choice:
             Picker(
-                parameter.labelKey,
+                LocalizedStringKey(parameter.labelKey),
                 selection: Binding(
                     get: { choiceValue },
                     set: { onChange(.choice($0)) }
@@ -76,7 +79,7 @@ struct EffectParameterEditor: View {
             )
         case .bool:
             Toggle(
-                parameter.labelKey,
+                LocalizedStringKey(parameter.labelKey),
                 isOn: Binding(
                     get: { boolValue },
                     set: { onChange(.bool($0)) }
@@ -128,6 +131,14 @@ struct EffectParameterEditor: View {
         }
 
         return parameter.choices.first?.value ?? ""
+    }
+
+    private var selectedChoice: EffectParameterChoice? {
+        guard case let .choice(value) = parameter.value else {
+            return nil
+        }
+
+        return parameter.choices.first { $0.value == value }
     }
 
     private var intValue: Int {

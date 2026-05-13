@@ -268,10 +268,7 @@ These should be implemented first because they can be tested locally without ext
 - Sample Rate Reduction
 - Bit Depth Reduction
 - Clipping
-- Low-pass
-- High-pass
-- Band-pass
-- Notch
+- Filter / EQ, with Low-pass, High-pass, Band-pass, Notch, and Random Frequency Response modes
 - Compressor
 - Limiter
 
@@ -279,8 +276,7 @@ These should be implemented first because they can be tested locally without ext
 
 Implement after the workflow engine and UI are stable:
 
-- Random Frequency Response
-- FFT / Spectral Damage
+- Spectral Damage, starting with Keep Top-K Frequency Bins
 
 ### Phase C Modules
 
@@ -554,19 +550,16 @@ Acceptance:
 
 Add remaining non-codec modules:
 
-- Low-pass
-- High-pass
-- Band-pass
-- Notch
+- Filter / EQ as one user-facing module family with Low-pass, High-pass, Band-pass, Notch, and Random Frequency Response modes
 - Compressor
-- Random Frequency Response
-- FFT / Spectral Damage placeholder or first implementation
+- Spectral Damage first implementation: Keep Top-K Frequency Bins with `componentCount`, `windowSize`, `overlap`, `minFrequency`, `maxFrequency`, fixed phase preservation, and `mix`
 
 Acceptance:
 
 - Each module has parameters.
 - Each module participates in workflows.
-- Unimplemented spectral variants are clearly labeled if present.
+- Legacy individual filter types are not exposed as separate user-facing modules.
+- Spectral Damage does not expose unimplemented dropout, smear, or generic degrade modes.
 
 ### Step 12: Codec Capability Layer
 

@@ -11,6 +11,7 @@ nonisolated enum EffectType: String, CaseIterable, Codable, Identifiable, Sendab
     case sampleRateReduction = "sample-rate-reduction"
     case bitDepthReduction = "bit-depth-reduction"
     case clipping
+    case filterEQ = "filter-eq"
     case lowPass = "low-pass"
     case highPass = "high-pass"
     case bandPass = "band-pass"
