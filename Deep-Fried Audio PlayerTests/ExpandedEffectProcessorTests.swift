@@ -134,7 +134,7 @@ final class ExpandedEffectProcessorTests: XCTestCase {
         let shouldExposeCodecModules = CodecCapabilityCatalog.current.hasAvailableRoundTripCodec
         XCTAssertEqual(
             project.availableSingleModuleTypes.contains(.bitrateReduction),
-            shouldExposeCodecModules
+            false
         )
         XCTAssertEqual(
             project.availableWorkflowModuleTypes.contains(.lowQualityCodec),

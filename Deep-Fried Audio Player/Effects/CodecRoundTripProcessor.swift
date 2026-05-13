@@ -65,7 +65,11 @@ nonisolated struct CodecRoundTripProcessor: EffectProcessor {
             )
         }
 
-        let bitRateKbps = try resolvedBitRateKbps(from: block, capability: capability)
+        let bitRateKbps = try resolvedBitRateKbps(
+            from: block,
+            capability: capability,
+            channelCount: input.channelCount
+        )
 
         return try CodecRoundTripFile.render(
             input,
@@ -93,18 +97,25 @@ nonisolated struct CodecRoundTripProcessor: EffectProcessor {
 
     private func resolvedBitRateKbps(
         from block: EffectBlock,
-        capability: CodecCapability
+        capability: CodecCapability,
+        channelCount: Int
     ) throws -> Int? {
         guard let bitRateRange = capability.bitRateRange else {
             return nil
         }
 
         let defaultBitRateKbps = capability.defaultBitRateKbps ?? bitRateRange.minKbps
-        return try block.intParameter(
+        let requestedBitRateKbps = try block.intParameter(
             EffectParameterKey.bitRateKbps,
             default: defaultBitRateKbps
         )
-        .clamped(to: bitRateRange.closedRange)
+        let safeMinimumBitRateKbps = max(
+            bitRateRange.minKbps,
+            min(bitRateRange.maxKbps, max(1, channelCount) * 32)
+        )
+
+        return max(requestedBitRateKbps, safeMinimumBitRateKbps)
+            .clamped(to: bitRateRange.closedRange)
     }
 }
 

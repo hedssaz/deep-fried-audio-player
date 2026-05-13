@@ -146,7 +146,7 @@ nonisolated struct CodecCapabilityCatalog: Codable, Equatable, Sendable {
                 audioFormatID: kAudioFormatMPEG4AAC,
                 fileExtension: "m4a",
                 defaultBitRateKbps: 64,
-                bitRateRange: CodecBitRateRange(minKbps: 16, maxKbps: 320)
+                bitRateRange: CodecBitRateRange(minKbps: 64, maxKbps: 320)
             )
         case .mp3:
             return probedSystemCapability(
@@ -154,7 +154,7 @@ nonisolated struct CodecCapabilityCatalog: Codable, Equatable, Sendable {
                 audioFormatID: kAudioFormatMPEGLayer3,
                 fileExtension: "mp3",
                 defaultBitRateKbps: 64,
-                bitRateRange: CodecBitRateRange(minKbps: 32, maxKbps: 320)
+                bitRateRange: CodecBitRateRange(minKbps: 64, maxKbps: 320)
             )
         case .appleLossless:
             return probedSystemCapability(

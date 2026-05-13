@@ -92,7 +92,7 @@ extension EffectType {
 
     static var userFacingCodecEffectTypes: [EffectType] {
         CodecCapabilityCatalog.current.hasAvailableRoundTripCodec
-            ? [.bitrateReduction, .lowQualityCodec]
+            ? [.lowQualityCodec]
             : []
     }
 
@@ -431,9 +431,9 @@ extension EffectType {
                 ),
             ]
         case .bitrateReduction:
-            Self.codecDefaultParameters(defaultBitRateKbps: 48)
+            Self.codecDefaultParameters(preferredDefaultBitRateKbps: nil)
         case .lowQualityCodec:
-            Self.codecDefaultParameters(defaultBitRateKbps: 24)
+            Self.codecDefaultParameters(preferredDefaultBitRateKbps: nil)
         case .lowPass,
              .highPass,
              .bandPass,
@@ -443,7 +443,7 @@ extension EffectType {
         }
     }
 
-    private static func codecDefaultParameters(defaultBitRateKbps: Int) -> [EffectParameter] {
+    private static func codecDefaultParameters(preferredDefaultBitRateKbps: Int?) -> [EffectParameter] {
         let catalog = CodecCapabilityCatalog.current
         let choices = catalog.availableRoundTripChoices()
 
@@ -456,7 +456,9 @@ extension EffectType {
             minKbps: 16,
             maxKbps: 320
         )
-        let clampedDefaultBitRate = defaultBitRateKbps.clamped(to: bitRateRange.closedRange)
+        let fallbackBitRate = defaultCapability.defaultBitRateKbps ?? bitRateRange.minKbps
+        let clampedDefaultBitRate = (preferredDefaultBitRateKbps ?? fallbackBitRate)
+            .clamped(to: bitRateRange.closedRange)
 
         return [
             EffectParameter(

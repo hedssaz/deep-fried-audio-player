@@ -37,6 +37,10 @@ All notable changes to Deep-Fried Audio Player should be documented in this file
 - Updated the default workflow renderer and single-module state to use the built-in Step 6 effect definitions.
 - Replaced the single-module placeholder editor with localized controls backed by `AudioProjectViewModel`.
 
+### Fixed
+
+- Fixed codec round-trip defaults so low-quality codec processing avoids unsafe low bitrates, and kept only one codec module visible in the module picker.
+
 ### Notes
 
 - Automated testing must not trigger audio playback or produce sound.

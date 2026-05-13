@@ -49,6 +49,14 @@ final class CodecCapabilityTests: XCTestCase {
         }
     }
 
+    func testOnlyLowQualityCodecIsUserFacingWhenCodecRoundTripIsAvailable() {
+        let expectedTypes: [EffectType] = CodecCapabilityCatalog.current.hasAvailableRoundTripCodec
+            ? [.lowQualityCodec]
+            : []
+
+        XCTAssertEqual(EffectType.userFacingCodecEffectTypes, expectedTypes)
+    }
+
     func testBuiltInRegistryContainsCodecProcessors() {
         XCTAssertNotNil(EffectProcessorRegistry.builtIn.processor(for: .bitrateReduction))
         XCTAssertNotNil(EffectProcessorRegistry.builtIn.processor(for: .lowQualityCodec))
@@ -95,6 +103,31 @@ final class CodecCapabilityTests: XCTestCase {
                 || output.samples != input.samples
                 || capability.id == .appleLossless
         )
+    }
+
+    func testDefaultCodecBlocksRenderDevelopmentSampleWhenAvailable() throws {
+        let catalog = CodecCapabilityCatalog.current
+
+        guard catalog.hasAvailableRoundTripCodec else {
+            throw XCTSkip("No AVFoundation codec round-trip is available in this environment.")
+        }
+
+        let input = try SampleAudioFactory.makeDevelopmentSample(
+            duration: 0.2,
+            sampleRate: 44_100,
+            channelCount: 2
+        )
+
+        for type in [EffectType.lowQualityCodec, .bitrateReduction] {
+            let processor = try XCTUnwrap(EffectProcessorRegistry.builtIn.processor(for: type))
+            let block = EffectBlock.defaultBlock(type: type, order: 0)
+            let output = try processor.process(input, block: block)
+
+            XCTAssertGreaterThan(output.frames, 0)
+            XCTAssertGreaterThan(output.channelCount, 0)
+            XCTAssertTrue(output.sampleRate.isFinite)
+            XCTAssertTrue(output.samples.flatMap { $0 }.allSatisfy(\.isFinite))
+        }
     }
 
     private func setParameter(
