@@ -38,6 +38,95 @@ enum PlaybackState: Equatable {
     case playingProcessed
 }
 
+enum OperationProgressKind: Equatable {
+    case singleModulePreview
+    case workflowPreview
+    case audioImport
+    case recording
+    case playback
+}
+
+enum OperationProgressTerminalState: Equatable {
+    case completed
+    case cancelled
+    case failed
+
+    var labelKey: String {
+        switch self {
+        case .completed:
+            "progress.status.completed"
+        case .cancelled:
+            "progress.status.cancelled"
+        case .failed:
+            "progress.status.failed"
+        }
+    }
+}
+
+enum OperationProgressAction: Equatable {
+    case stop
+    case cancel
+
+    var titleKey: String {
+        switch self {
+        case .stop:
+            "progress.action.stop"
+        case .cancel:
+            "progress.action.cancel"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .stop:
+            "stop.fill"
+        case .cancel:
+            "xmark"
+        }
+    }
+}
+
+enum OperationProgressStep: Equatable {
+    case block(current: Int, total: Int)
+
+    var localizationKey: String {
+        switch self {
+        case .block:
+            "progress.step.block"
+        }
+    }
+
+    var currentValue: Int {
+        switch self {
+        case let .block(current, _):
+            current
+        }
+    }
+
+    var totalValue: Int {
+        switch self {
+        case let .block(_, total):
+            total
+        }
+    }
+}
+
+struct OperationProgress: Equatable {
+    var kind: OperationProgressKind
+    var titleKey: String
+    var phaseKey: String
+    var progress: Double?
+    var step: OperationProgressStep?
+    var itemKey: String?
+    var elapsedStartDate: Date?
+    var terminalState: OperationProgressTerminalState?
+    var action: OperationProgressAction?
+
+    var isActive: Bool {
+        terminalState == nil
+    }
+}
+
 @MainActor
 final class AudioProjectViewModel: ObservableObject {
     @Published var mode: AudioProjectMode = .singleModule {
@@ -71,6 +160,7 @@ final class AudioProjectViewModel: ObservableObject {
     @Published var isRecording = false
     @Published var audioSourceStatusKey: String?
     @Published var playbackStatusKey: String?
+    @Published var operationProgress: OperationProgress?
 
     let availableSingleModuleTypes = EffectType.availableUserFacingEffectTypes
     let availableWorkflowModuleTypes = EffectType.availableUserFacingEffectTypes
@@ -124,9 +214,17 @@ final class AudioProjectViewModel: ObservableObject {
         stopCurrentPlayback(clearStatus: true)
         audioSourceStatusKey = "audio.importing"
         isRecording = false
+        operationProgress = OperationProgress(
+            kind: .audioImport,
+            titleKey: "progress.import.title",
+            phaseKey: "progress.phase.decodingAudio",
+            progress: nil,
+            action: nil
+        )
 
         do {
             let buffer = try await audioImportService.importAudio(from: url)
+            markOperationCompleted(phaseKey: "progress.phase.completed")
             loadAudioBuffer(
                 buffer,
                 statusKey: "audio.imported",
@@ -136,6 +234,7 @@ final class AudioProjectViewModel: ObservableObject {
             audioSourceStatusKey = "audio.importFailed"
             processedPreviewBuffer = nil
             processingState = .failed(message: error.localizedDescription)
+            markOperationFailed()
         }
     }
 
@@ -150,14 +249,31 @@ final class AudioProjectViewModel: ObservableObject {
         do {
             try await recordingService.startRecording()
             isRecording = true
+            operationProgress = OperationProgress(
+                kind: .recording,
+                titleKey: "progress.recording.title",
+                phaseKey: "progress.phase.recording",
+                progress: nil,
+                elapsedStartDate: Date(),
+                action: .cancel
+            )
         } catch RecordingServiceError.permissionDenied {
             isRecording = false
             audioSourceStatusKey = "audio.recordPermissionDenied"
             processingState = originalAudioBuffer == nil ? .empty : .dirty
+            operationProgress = nil
         } catch {
             isRecording = false
             audioSourceStatusKey = "audio.recordFailed"
             processingState = .failed(message: error.localizedDescription)
+            operationProgress = OperationProgress(
+                kind: .recording,
+                titleKey: "progress.recording.title",
+                phaseKey: "progress.phase.failed",
+                progress: nil,
+                terminalState: .failed,
+                action: nil
+            )
         }
     }
 
@@ -199,17 +315,61 @@ final class AudioProjectViewModel: ObservableObject {
         }
 
         audioSourceStatusKey = "audio.processingRecording"
+        operationProgress = OperationProgress(
+            kind: .recording,
+            titleKey: "progress.recording.title",
+            phaseKey: "progress.phase.processingRecording",
+            progress: nil,
+            action: nil
+        )
 
         do {
             let buffer = try await recordingService.stopRecording()
             isRecording = false
+            markOperationCompleted(phaseKey: "progress.phase.completed")
             loadAudioBuffer(buffer, statusKey: "audio.recorded")
         } catch {
             isRecording = false
             audioSourceStatusKey = "audio.recordFailed"
             processedPreviewBuffer = nil
             processingState = .failed(message: error.localizedDescription)
+            markOperationFailed()
         }
+    }
+
+    func cancelActiveOperation() async {
+        guard let operationProgress else {
+            return
+        }
+
+        switch operationProgress.kind {
+        case .singleModulePreview, .workflowPreview:
+            await cancelPreviewRender()
+        case .recording:
+            await cancelRecording()
+        case .playback:
+            stopPlayback()
+        case .audioImport:
+            break
+        }
+    }
+
+    func cancelRecording() async {
+        guard isRecording else {
+            return
+        }
+
+        await recordingService.cancelRecording()
+        isRecording = false
+        audioSourceStatusKey = "audio.recordCancelled"
+        operationProgress = OperationProgress(
+            kind: .recording,
+            titleKey: "progress.recording.title",
+            phaseKey: "progress.phase.cancelled",
+            progress: nil,
+            terminalState: .cancelled,
+            action: nil
+        )
     }
 
     func selectSingleModuleType(_ type: EffectType) {
@@ -647,6 +807,13 @@ final class AudioProjectViewModel: ObservableObject {
         activePlaybackToken = playbackToken
         playbackState = targetPlaybackState
         playbackStatusKey = statusKey
+        operationProgress = OperationProgress(
+            kind: .playback,
+            titleKey: "progress.playback.title",
+            phaseKey: statusKey,
+            progress: nil,
+            action: .stop
+        )
 
         do {
             try await playbackController.play(buffer) { [weak self] in
@@ -657,10 +824,19 @@ final class AudioProjectViewModel: ObservableObject {
                 self.playbackState = .stopped
                 self.activePlaybackToken = nil
                 self.playbackStatusKey = nil
+                self.clearPlaybackProgressIfNeeded()
             }
         } catch {
             stopCurrentPlayback(clearStatus: false)
             playbackStatusKey = "playback.failed"
+            operationProgress = OperationProgress(
+                kind: .playback,
+                titleKey: "progress.playback.title",
+                phaseKey: "progress.phase.failed",
+                progress: nil,
+                terminalState: .failed,
+                action: nil
+            )
         }
     }
 
@@ -672,6 +848,167 @@ final class AudioProjectViewModel: ObservableObject {
         if clearStatus {
             playbackStatusKey = nil
         }
+
+        clearPlaybackProgressIfNeeded()
+    }
+
+    private func clearPlaybackProgressIfNeeded() {
+        guard operationProgress?.kind == .playback else {
+            return
+        }
+
+        operationProgress = nil
+    }
+
+    private func markOperationCompleted(phaseKey: String) {
+        guard var progress = operationProgress else {
+            return
+        }
+
+        progress.phaseKey = phaseKey
+        progress.progress = progress.progress == nil ? nil : 1
+        progress.elapsedStartDate = nil
+        progress.terminalState = .completed
+        progress.action = nil
+        operationProgress = progress
+    }
+
+    private func markOperationCancelled() {
+        guard var progress = operationProgress else {
+            return
+        }
+
+        progress.phaseKey = "progress.phase.cancelled"
+        progress.elapsedStartDate = nil
+        progress.terminalState = .cancelled
+        progress.action = nil
+        operationProgress = progress
+    }
+
+    private func markOperationFailed() {
+        guard var progress = operationProgress else {
+            return
+        }
+
+        progress.phaseKey = "progress.phase.failed"
+        progress.elapsedStartDate = nil
+        progress.terminalState = .failed
+        progress.action = nil
+        operationProgress = progress
+    }
+
+    private func cancelPreviewRender() async {
+        guard operationProgress?.kind == .singleModulePreview
+                || operationProgress?.kind == .workflowPreview else {
+            return
+        }
+
+        activeRenderToken = nil
+        renderTask?.cancel()
+        renderTask = nil
+        await renderer.cancelActiveRender()
+        processingState = originalAudioBuffer == nil ? .empty : .dirty
+        markOperationCancelled()
+    }
+
+    private func renderProgressHandler(
+        token: UUID,
+        kind: OperationProgressKind,
+        titleKey: String
+    ) -> @Sendable (WorkflowRenderProgress) -> Void {
+        { [weak self] renderProgress in
+            Task { @MainActor [weak self] in
+                self?.handleRenderProgress(
+                    renderProgress,
+                    token: token,
+                    kind: kind,
+                    titleKey: titleKey
+                )
+            }
+        }
+    }
+
+    private func handleRenderProgress(
+        _ renderProgress: WorkflowRenderProgress,
+        token: UUID,
+        kind: OperationProgressKind,
+        titleKey: String
+    ) {
+        guard activeRenderToken == token,
+              !Task.isCancelled else {
+            return
+        }
+
+        let progressValue = renderProgress.progress.clamped(to: 0...1)
+        processingState = .processing(progress: progressValue)
+
+        operationProgress = OperationProgress(
+            kind: kind,
+            titleKey: titleKey,
+            phaseKey: phaseKey(for: renderProgress.phase, kind: kind),
+            progress: progressValue,
+            step: step(for: renderProgress, kind: kind),
+            itemKey: itemKey(for: renderProgress, kind: kind),
+            action: .stop
+        )
+    }
+
+    private func phaseKey(
+        for phase: WorkflowRenderProgress.Phase,
+        kind: OperationProgressKind
+    ) -> String {
+        switch phase {
+        case .preparing:
+            kind == .singleModulePreview
+                ? "progress.phase.renderingModule"
+                : "progress.phase.renderingWorkflow"
+        case .processingBlock:
+            kind == .singleModulePreview
+                ? "progress.phase.renderingModule"
+                : "progress.phase.renderingBlock"
+        case .codecPreparing:
+            "progress.phase.preparing"
+        case .codecEncoding:
+            "progress.phase.encoding"
+        case .codecDecoding:
+            "progress.phase.decoding"
+        case .codecFinalizing:
+            "progress.phase.finalizing"
+        case .finalizing:
+            "progress.phase.finalizing"
+        case .completed:
+            "progress.phase.completed"
+        }
+    }
+
+    private func step(
+        for renderProgress: WorkflowRenderProgress,
+        kind: OperationProgressKind
+    ) -> OperationProgressStep? {
+        guard kind == .workflowPreview,
+              let currentBlockIndex = renderProgress.currentBlockIndex,
+              renderProgress.totalBlockCount > 0 else {
+            return nil
+        }
+
+        return .block(
+            current: currentBlockIndex + 1,
+            total: renderProgress.totalBlockCount
+        )
+    }
+
+    private func itemKey(
+        for renderProgress: WorkflowRenderProgress,
+        kind: OperationProgressKind
+    ) -> String? {
+        switch kind {
+        case .singleModulePreview:
+            renderProgress.currentBlock?.name ?? selectedSingleModule.name
+        case .workflowPreview:
+            renderProgress.currentBlock?.name
+        case .audioImport, .recording, .playback:
+            nil
+        }
     }
 
     private func renderSingleModulePreviewWithoutCancelling() async {
@@ -682,12 +1019,21 @@ final class AudioProjectViewModel: ObservableObject {
         guard let originalAudioBuffer else {
             processedPreviewBuffer = nil
             processingState = .empty
+            operationProgress = nil
             return
         }
 
         let token = UUID()
         activeRenderToken = token
-        processingState = .processing(progress: nil)
+        processingState = .processing(progress: 0)
+        operationProgress = OperationProgress(
+            kind: .singleModulePreview,
+            titleKey: "progress.preview.single.title",
+            phaseKey: "progress.phase.renderingModule",
+            progress: 0,
+            itemKey: selectedSingleModule.name,
+            action: .stop
+        )
 
         let workflow = Workflow(
             name: "workflow.singleModulePreview",
@@ -695,19 +1041,29 @@ final class AudioProjectViewModel: ObservableObject {
         )
 
         do {
-            let output = try await renderer.render(originalAudioBuffer, workflow: workflow)
+            let output = try await renderer.render(
+                originalAudioBuffer,
+                workflow: workflow,
+                progress: renderProgressHandler(
+                    token: token,
+                    kind: .singleModulePreview,
+                    titleKey: "progress.preview.single.title"
+                )
+            )
             guard activeRenderToken == token, !Task.isCancelled else {
                 return
             }
 
             processedPreviewBuffer = output
             processingState = .ready
+            markOperationCompleted(phaseKey: "progress.phase.completed")
         } catch is CancellationError {
             guard activeRenderToken == token else {
                 return
             }
 
             processingState = .dirty
+            markOperationCancelled()
         } catch {
             guard activeRenderToken == token else {
                 return
@@ -716,6 +1072,7 @@ final class AudioProjectViewModel: ObservableObject {
             processedPreviewBuffer = nil
             processingState = .failed(message: error.localizedDescription)
             singleModuleStatusKey = "singleModule.renderFailed"
+            markOperationFailed()
         }
     }
 
@@ -727,27 +1084,45 @@ final class AudioProjectViewModel: ObservableObject {
         guard let originalAudioBuffer else {
             processedPreviewBuffer = nil
             processingState = .empty
+            operationProgress = nil
             return
         }
 
         let token = UUID()
         activeRenderToken = token
-        processingState = .processing(progress: nil)
+        processingState = .processing(progress: 0)
+        operationProgress = OperationProgress(
+            kind: .workflowPreview,
+            titleKey: "progress.preview.workflow.title",
+            phaseKey: "progress.phase.renderingWorkflow",
+            progress: 0,
+            action: .stop
+        )
 
         do {
-            let output = try await renderer.render(originalAudioBuffer, workflow: currentWorkflow)
+            let output = try await renderer.render(
+                originalAudioBuffer,
+                workflow: currentWorkflow,
+                progress: renderProgressHandler(
+                    token: token,
+                    kind: .workflowPreview,
+                    titleKey: "progress.preview.workflow.title"
+                )
+            )
             guard activeRenderToken == token, !Task.isCancelled else {
                 return
             }
 
             processedPreviewBuffer = output
             processingState = .ready
+            markOperationCompleted(phaseKey: "progress.phase.completed")
         } catch is CancellationError {
             guard activeRenderToken == token else {
                 return
             }
 
             processingState = .dirty
+            markOperationCancelled()
         } catch {
             guard activeRenderToken == token else {
                 return
@@ -756,6 +1131,7 @@ final class AudioProjectViewModel: ObservableObject {
             processedPreviewBuffer = nil
             processingState = .failed(message: error.localizedDescription)
             workflowStatusKey = "workflow.renderFailed"
+            markOperationFailed()
         }
     }
 }

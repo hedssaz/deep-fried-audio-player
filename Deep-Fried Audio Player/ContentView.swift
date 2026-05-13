@@ -213,17 +213,23 @@ struct ContentView: View {
 
     private var processingSection: some View {
         ShellSection(titleKey: "section.processing", systemImage: "gearshape.2") {
-            HStack(spacing: 12) {
-                Image(systemName: processingSystemImage)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 24)
-                VStack(alignment: .leading, spacing: 6) {
+            if let operationProgress = project.operationProgress {
+                OperationProgressDetailView(progress: operationProgress) {
+                    Task {
+                        await project.cancelActiveOperation()
+                    }
+                }
+            } else {
+                HStack(spacing: 12) {
+                    Image(systemName: processingSystemImage)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24)
                     Text(LocalizedStringKey(processingLocalizationKey))
                         .font(.body)
-                    if case let .processing(progress) = project.processingState {
-                        ProgressView(value: progress)
-                            .accessibilityIdentifier("processingProgress")
-                    }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Color.clear
+                        .frame(width: 96, height: 1)
+                        .accessibilityHidden(true)
                 }
             }
         }
@@ -391,6 +397,209 @@ private struct ActionButton: View {
         }
         .buttonStyle(.borderedProminent)
         .accessibilityIdentifier(accessibilityIdentifier)
+    }
+}
+
+private struct OperationProgressDetailView: View {
+    let progress: OperationProgress
+    let action: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: systemImage)
+                    .foregroundStyle(iconStyle)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(LocalizedStringKey(progress.titleKey))
+                        .font(.body)
+                        .fontWeight(.semibold)
+
+                    Text(LocalizedStringKey(progress.phaseKey))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if let itemKey = progress.itemKey {
+                        Text(LocalizedStringKey(itemKey))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                if let progressValue = progress.progress {
+                    Text(progressValue, format: .percent.precision(.fractionLength(0)))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, alignment: .trailing)
+                        .accessibilityIdentifier("processingProgressPercent")
+                } else if progress.isActive {
+                    ProgressView()
+                        .frame(width: 44, alignment: .trailing)
+                        .accessibilityIdentifier("processingIndeterminateProgress")
+                } else {
+                    Color.clear
+                        .frame(width: 44, height: 1)
+                        .accessibilityHidden(true)
+                }
+
+                progressButton
+            }
+
+            if let progressValue = progress.progress {
+                ProgressView(value: progressValue)
+                    .accessibilityIdentifier("processingProgress")
+            } else if progress.isActive {
+                ProgressView()
+                    .accessibilityIdentifier("processingProgress")
+            }
+
+            detailRows
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("operationProgressDetail")
+    }
+
+    @ViewBuilder
+    private var progressButton: some View {
+        if let progressAction = progress.action, progress.isActive {
+            Button(action: action) {
+                Label(
+                    LocalizedStringKey(progressAction.titleKey),
+                    systemImage: progressAction.systemImage
+                )
+                .labelStyle(.titleAndIcon)
+                .frame(width: 96)
+            }
+            .buttonStyle(.bordered)
+            .tint(progressAction == .cancel ? .red : nil)
+            .accessibilityIdentifier("operationProgressActionButton")
+        } else {
+            Color.clear
+                .frame(width: 96, height: 1)
+                .accessibilityHidden(true)
+        }
+    }
+
+    @ViewBuilder
+    private var detailRows: some View {
+        if let step = progress.step {
+            Label {
+                Text(verbatim: localizedStepText(step))
+            } icon: {
+                Image(systemName: "list.number")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .accessibilityIdentifier("operationProgressStep")
+        }
+
+        if let elapsedStartDate = progress.elapsedStartDate {
+            TimelineView(.periodic(from: elapsedStartDate, by: 1)) { context in
+                Label {
+                    HStack(spacing: 4) {
+                        Text("progress.elapsed")
+                        Text(verbatim: elapsedText(from: elapsedStartDate, to: context.date))
+                            .monospacedDigit()
+                    }
+                } icon: {
+                    Image(systemName: "timer")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("operationProgressElapsed")
+            }
+        }
+
+        if let terminalState = progress.terminalState {
+            Label(
+                LocalizedStringKey(terminalState.labelKey),
+                systemImage: terminalSystemImage(for: terminalState)
+            )
+            .font(.caption)
+            .foregroundStyle(terminalStyle(for: terminalState))
+            .accessibilityIdentifier("operationProgressTerminalStatus")
+        }
+    }
+
+    private var systemImage: String {
+        switch progress.terminalState {
+        case .completed:
+            "checkmark.circle"
+        case .cancelled:
+            "xmark.circle"
+        case .failed:
+            "exclamationmark.triangle"
+        case nil:
+            switch progress.kind {
+            case .audioImport:
+                "square.and.arrow.down"
+            case .recording:
+                "record.circle"
+            case .playback:
+                "speaker.wave.2"
+            case .singleModulePreview, .workflowPreview:
+                "hourglass"
+            }
+        }
+    }
+
+    private var iconStyle: AnyShapeStyle {
+        switch progress.terminalState {
+        case .completed:
+            AnyShapeStyle(.green)
+        case .cancelled:
+            AnyShapeStyle(.secondary)
+        case .failed:
+            AnyShapeStyle(.red)
+        case nil:
+            AnyShapeStyle(.secondary)
+        }
+    }
+
+    private func localizedStepText(_ step: OperationProgressStep) -> String {
+        String(
+            format: NSLocalizedString(step.localizationKey, comment: ""),
+            step.currentValue,
+            step.totalValue
+        )
+    }
+
+    private func elapsedText(from startDate: Date, to currentDate: Date) -> String {
+        let elapsedSeconds = max(0, Int(currentDate.timeIntervalSince(startDate)))
+        let hours = elapsedSeconds / 3_600
+        let minutes = (elapsedSeconds % 3_600) / 60
+        let seconds = elapsedSeconds % 60
+
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        }
+
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+
+    private func terminalSystemImage(for state: OperationProgressTerminalState) -> String {
+        switch state {
+        case .completed:
+            "checkmark.circle"
+        case .cancelled:
+            "xmark.circle"
+        case .failed:
+            "exclamationmark.triangle"
+        }
+    }
+
+    private func terminalStyle(for state: OperationProgressTerminalState) -> AnyShapeStyle {
+        switch state {
+        case .completed:
+            AnyShapeStyle(.green)
+        case .cancelled:
+            AnyShapeStyle(.secondary)
+        case .failed:
+            AnyShapeStyle(.red)
+        }
     }
 }
 

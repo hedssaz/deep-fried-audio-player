@@ -181,12 +181,59 @@ final class WorkflowRendererTests: XCTestCase {
         }
     }
 
+    func testMultiBlockProgressIsMonotonicAndCompletes() async throws {
+        let input = try makeBuffer(samples: [[0.1, -0.2, 0.3]])
+        let workflow = Workflow(
+            name: "workflow.progress",
+            blocks: [
+                EffectBlock(type: .clipping, name: "effect.clipping", order: 0),
+                EffectBlock(type: .limiter, name: "effect.limiter", order: 1),
+            ]
+        )
+        let progressLog = WorkflowProgressLog()
+        let renderer = WorkflowRenderer(
+            registry: EffectProcessorRegistry(processors: [
+                GainProcessor(type: .clipping, multiplier: 0.5),
+                GainProcessor(type: .limiter, multiplier: 0.5),
+            ])
+        )
+
+        _ = try await renderer.render(input, workflow: workflow) { progress in
+            progressLog.append(progress.progress)
+        }
+
+        let values = progressLog.values()
+        XCTAssertFalse(values.isEmpty)
+        XCTAssertEqual(values.last ?? -1, 1.0, accuracy: 0.000_001)
+
+        for (previous, current) in zip(values, values.dropFirst()) {
+            XCTAssertLessThanOrEqual(previous, current + 0.000_001)
+        }
+    }
+
     private func makeBuffer(samples: [[Float]]) throws -> AudioBuffer {
         try AudioBuffer(
             sampleRate: 44_100,
             channelCount: samples.count,
             samples: samples
         )
+    }
+}
+
+private final class WorkflowProgressLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var progressValues: [Double] = []
+
+    func append(_ value: Double) {
+        lock.withLock {
+            progressValues.append(value)
+        }
+    }
+
+    func values() -> [Double] {
+        lock.withLock {
+            progressValues
+        }
     }
 }
 

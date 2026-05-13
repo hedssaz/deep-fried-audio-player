@@ -34,7 +34,7 @@ nonisolated enum CodecRoundTripProcessorError: Error, Equatable, CustomStringCon
     }
 }
 
-nonisolated struct CodecRoundTripProcessor: EffectProcessor {
+nonisolated struct CodecRoundTripProcessor: ProgressReportingEffectProcessor {
     let type: EffectType
 
     private let catalog: CodecCapabilityCatalog
@@ -53,6 +53,16 @@ nonisolated struct CodecRoundTripProcessor: EffectProcessor {
     }
 
     func process(_ input: AudioBuffer, block: EffectBlock) throws -> AudioBuffer {
+        try process(input, block: block) { _ in }
+    }
+
+    func process(
+        _ input: AudioBuffer,
+        block: EffectBlock,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
+    ) throws -> AudioBuffer {
+        progress(EffectProcessorProgress(phase: .codecPreparing))
+
         let selectedCodecID = try selectedCodecID(from: block)
         guard let capability = catalog.capability(for: selectedCodecID) else {
             throw CodecRoundTripProcessorError.unknownCodec(selectedCodecID.rawValue)
@@ -74,7 +84,8 @@ nonisolated struct CodecRoundTripProcessor: EffectProcessor {
         return try CodecRoundTripFile.render(
             input,
             capability: capability,
-            bitRateKbps: bitRateKbps
+            bitRateKbps: bitRateKbps,
+            progress: progress
         )
     }
 
@@ -142,7 +153,8 @@ nonisolated enum CodecRoundTripFile {
     static func render(
         _ input: AudioBuffer,
         capability: CodecCapability,
-        bitRateKbps: Int?
+        bitRateKbps: Int?,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void = { _ in }
     ) throws -> AudioBuffer {
         guard let audioFormatID = capability.audioFormatID,
               let fileExtension = capability.fileExtension else {
@@ -168,6 +180,7 @@ nonisolated enum CodecRoundTripFile {
         try? FileManager.default.removeItem(at: fileURL)
 
         do {
+            progress(EffectProcessorProgress(phase: .codecEncoding))
             let outputFile = try AVAudioFile(
                 forWriting: fileURL,
                 settings: settings,
@@ -178,11 +191,13 @@ nonisolated enum CodecRoundTripFile {
             outputFile.close()
         }
 
+        progress(EffectProcessorProgress(phase: .codecDecoding))
         let decoded = try AudioFileDecoder.decodeAudioFile(at: fileURL)
         guard decoded.frames > 0 else {
             throw CodecRoundTripProcessorError.emptyDecodedOutput(capability.id)
         }
 
+        progress(EffectProcessorProgress(phase: .codecFinalizing))
         return decoded
     }
 

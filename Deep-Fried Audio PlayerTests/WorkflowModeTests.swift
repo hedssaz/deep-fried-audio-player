@@ -247,6 +247,45 @@ final class WorkflowModeTests: XCTestCase {
         XCTAssertEqual(project.playbackState, .stopped)
     }
 
+    func testWorkflowProgressIncludesCurrentBlockStepAndName() async throws {
+        let secondBlockStarted = expectation(description: "Second workflow block started")
+        let firstBlock = EffectBlock(type: .clipping, name: "effect.clipping", order: 0)
+        let secondBlock = EffectBlock(type: .limiter, name: "effect.limiter", order: 1)
+        let renderer = WorkflowRenderer(
+            registry: EffectProcessorRegistry(processors: [
+                WorkflowIdentityProcessor(type: .clipping),
+                WorkflowProgressDelayProcessor(type: .limiter, started: secondBlockStarted),
+            ])
+        )
+        let project = AudioProjectViewModel(
+            renderer: renderer,
+            modulePresetStore: ModulePresetStore(directoryURL: makeTemporaryDirectory()),
+            workflowPresetStore: WorkflowPresetStore(directoryURL: makeTemporaryDirectory())
+        )
+        project.currentWorkflow = Workflow(
+            name: "workflow.progress",
+            blocks: [firstBlock, secondBlock]
+        )
+        project.originalAudioBuffer = try SampleAudioFactory.makeDevelopmentSample(duration: 0.05)
+
+        let renderTask = Task {
+            await project.renderWorkflowPreview()
+        }
+
+        await fulfillment(of: [secondBlockStarted], timeout: 1)
+        let didShowSecondBlock = await waitFor {
+            project.operationProgress?.step == .block(current: 2, total: 2)
+        }
+        XCTAssertTrue(didShowSecondBlock)
+
+        let progress = try XCTUnwrap(project.operationProgress)
+        XCTAssertEqual(progress.kind, .workflowPreview)
+        XCTAssertEqual(progress.itemKey, "effect.limiter")
+        XCTAssertEqual(progress.step, .block(current: 2, total: 2))
+
+        await renderTask.value
+    }
+
     private func makeProject() -> AudioProjectViewModel {
         AudioProjectViewModel(
             modulePresetStore: ModulePresetStore(directoryURL: makeTemporaryDirectory()),
@@ -257,5 +296,42 @@ final class WorkflowModeTests: XCTestCase {
     private func makeTemporaryDirectory() -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    }
+
+    @MainActor
+    private func waitFor(_ condition: @escaping @MainActor () -> Bool) async -> Bool {
+        for _ in 0..<50 {
+            if condition() {
+                return true
+            }
+
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+
+        return condition()
+    }
+}
+
+private struct WorkflowIdentityProcessor: EffectProcessor {
+    let type: EffectType
+
+    func process(_ input: AudioBuffer, block: EffectBlock) throws -> AudioBuffer {
+        input
+    }
+}
+
+private final class WorkflowProgressDelayProcessor: EffectProcessor, @unchecked Sendable {
+    let type: EffectType
+    private let started: XCTestExpectation
+
+    init(type: EffectType, started: XCTestExpectation) {
+        self.type = type
+        self.started = started
+    }
+
+    func process(_ input: AudioBuffer, block: EffectBlock) throws -> AudioBuffer {
+        started.fulfill()
+        Thread.sleep(forTimeInterval: 0.2)
+        return input
     }
 }

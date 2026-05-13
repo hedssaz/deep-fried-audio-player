@@ -50,6 +50,38 @@ final class SingleModuleModeTests: XCTestCase {
         XCTAssertTrue(secondOutput.samples.flatMap { $0 }.allSatisfy(\.isFinite))
     }
 
+    func testSingleModuleProgressIncludesModuleName() async throws {
+        let started = expectation(description: "Single module render started")
+        let renderer = WorkflowRenderer(
+            registry: EffectProcessorRegistry(processors: [
+                ProgressDelayProcessor(type: .clipping, started: started),
+            ])
+        )
+        let project = AudioProjectViewModel(
+            renderer: renderer,
+            modulePresetStore: ModulePresetStore(directoryURL: makeTemporaryDirectory())
+        )
+        project.selectSingleModuleType(.clipping)
+        project.originalAudioBuffer = try SampleAudioFactory.makeDevelopmentSample(duration: 0.05)
+
+        let renderTask = Task {
+            await project.renderSingleModulePreview()
+        }
+
+        await fulfillment(of: [started], timeout: 1)
+        let didShowModuleName = await waitFor {
+            project.operationProgress?.itemKey == "effect.clipping"
+        }
+        XCTAssertTrue(didShowModuleName)
+
+        let progress = try XCTUnwrap(project.operationProgress)
+        XCTAssertEqual(progress.kind, .singleModulePreview)
+        XCTAssertEqual(progress.titleKey, "progress.preview.single.title")
+        XCTAssertEqual(progress.itemKey, "effect.clipping")
+
+        await renderTask.value
+    }
+
     func testModulePresetStoreRoundTripsJSON() async throws {
         let store = ModulePresetStore(directoryURL: makeTemporaryDirectory())
         let block = EffectBlock.defaultBlock(type: .bitDepthReduction, order: 0, presetName: "Crunch")
@@ -127,5 +159,34 @@ final class SingleModuleModeTests: XCTestCase {
     private func makeTemporaryDirectory() -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    }
+
+    @MainActor
+    private func waitFor(_ condition: @escaping @MainActor () -> Bool) async -> Bool {
+        for _ in 0..<50 {
+            if condition() {
+                return true
+            }
+
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+
+        return condition()
+    }
+}
+
+private final class ProgressDelayProcessor: EffectProcessor, @unchecked Sendable {
+    let type: EffectType
+    private let started: XCTestExpectation
+
+    init(type: EffectType, started: XCTestExpectation) {
+        self.type = type
+        self.started = started
+    }
+
+    func process(_ input: AudioBuffer, block: EffectBlock) throws -> AudioBuffer {
+        started.fulfill()
+        Thread.sleep(forTimeInterval: 0.2)
+        return input
     }
 }

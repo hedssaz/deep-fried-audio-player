@@ -63,9 +63,12 @@ Deep-Fried Audio Player/
 - 当前单模块配置。
 - 当前 `Workflow`。
 - 处理状态：empty、dirty、processing、ready、failed。
+- UI-only operation progress：导入、录音、播放和预览渲染的标题、阶段、百分比、步骤、可取消动作和完成/取消/失败状态。
 - 播放状态：stopped、playing original、playing processed。
 
 Single Module Mode 不需要单独的处理管线。它应被建模为一个临时 workflow：只包含一个启用的 `EffectBlock`。这样单模块和工作流模式可以共用 `WorkflowRenderer`、`EffectProcessor`、预设和测试逻辑。
+
+`ProcessingState` 表示处理后预览是否可用；operation progress 只用于 UI 细节展示。导入解码和播放在没有可靠内部时间回调时应显示 indeterminate progress。工作流预览只要求 block-level weighted progress，不要求 processor 内部 sample/window 级进度。录音的 elapsed time 来自 ViewModel UI 状态，不应触发导入或渲染状态。
 
 ## AudioBuffer Data Flow
 

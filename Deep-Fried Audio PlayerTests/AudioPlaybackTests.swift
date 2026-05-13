@@ -54,11 +54,13 @@ final class AudioPlaybackTests: XCTestCase {
         XCTAssertEqual(playbackController.playedBuffers, [originalBuffer])
         XCTAssertEqual(project.playbackState, .playingOriginal)
         XCTAssertEqual(project.playbackStatusKey, "playback.playingOriginal")
+        XCTAssertEqual(project.operationProgress?.kind, .playback)
 
         playbackController.completeLatestPlayback()
 
         XCTAssertEqual(project.playbackState, .stopped)
         XCTAssertNil(project.playbackStatusKey)
+        XCTAssertNil(project.operationProgress)
     }
 
     @MainActor
@@ -83,12 +85,14 @@ final class AudioPlaybackTests: XCTestCase {
         project.generateSampleAudio()
         await project.playOriginalAudio()
         let stopCountBeforeManualStop = playbackController.stopCallCount
+        XCTAssertEqual(project.operationProgress?.kind, .playback)
 
         project.stopPlayback()
 
         XCTAssertEqual(playbackController.stopCallCount, stopCountBeforeManualStop + 1)
         XCTAssertEqual(project.playbackState, .stopped)
         XCTAssertNil(project.playbackStatusKey)
+        XCTAssertNil(project.operationProgress)
     }
 
     @MainActor

@@ -27,6 +27,44 @@ nonisolated enum WorkflowRendererError: Error, Equatable {
     case invalidSafetyPeak(Float)
 }
 
+nonisolated struct WorkflowRenderProgress: Equatable, Sendable {
+    enum Phase: Equatable, Sendable {
+        case preparing
+        case processingBlock
+        case codecPreparing
+        case codecEncoding
+        case codecDecoding
+        case codecFinalizing
+        case finalizing
+        case completed
+    }
+
+    let progress: Double
+    let phase: Phase
+    let currentBlock: WorkflowRenderBlockContext?
+    let currentBlockIndex: Int?
+    let totalBlockCount: Int
+}
+
+nonisolated struct EffectProcessorProgress: Equatable, Sendable {
+    enum Phase: Equatable, Sendable {
+        case codecPreparing
+        case codecEncoding
+        case codecDecoding
+        case codecFinalizing
+    }
+
+    let phase: Phase
+}
+
+nonisolated protocol ProgressReportingEffectProcessor: EffectProcessor {
+    func process(
+        _ input: AudioBuffer,
+        block: EffectBlock,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
+    ) throws -> AudioBuffer
+}
+
 actor WorkflowRenderer {
     private let registry: EffectProcessorRegistry
     private let safetyPeak: Float
@@ -41,7 +79,11 @@ actor WorkflowRenderer {
         self.safetyPeak = safetyPeak
     }
 
-    func render(_ input: AudioBuffer, workflow: Workflow) async throws -> AudioBuffer {
+    func render(
+        _ input: AudioBuffer,
+        workflow: Workflow,
+        progress: @escaping @Sendable (WorkflowRenderProgress) -> Void = { _ in }
+    ) async throws -> AudioBuffer {
         activeRenderTask?.cancel()
 
         let renderID = UUID()
@@ -52,7 +94,8 @@ actor WorkflowRenderer {
                 input,
                 workflow: workflow,
                 registry: registry,
-                safetyPeak: safetyPeak
+                safetyPeak: safetyPeak,
+                progress: progress
             )
         }
 
@@ -69,6 +112,12 @@ actor WorkflowRenderer {
         }
     }
 
+    func cancelActiveRender() {
+        activeRenderID = nil
+        activeRenderTask?.cancel()
+        activeRenderTask = nil
+    }
+
     private func clearActiveRenderIfNeeded(renderID: UUID) {
         guard activeRenderID == renderID else {
             return
@@ -82,39 +131,117 @@ actor WorkflowRenderer {
         _ input: AudioBuffer,
         workflow: Workflow,
         registry: EffectProcessorRegistry,
-        safetyPeak: Float
+        safetyPeak: Float,
+        progress: @escaping @Sendable (WorkflowRenderProgress) -> Void
     ) throws -> AudioBuffer {
         let enabledBlocks = workflow.orderedBlocks.filter(\.isEnabled)
 
         guard !enabledBlocks.isEmpty else {
+            progress(
+                WorkflowRenderProgress(
+                    progress: 1,
+                    phase: .completed,
+                    currentBlock: nil,
+                    currentBlockIndex: nil,
+                    totalBlockCount: 0
+                )
+            )
             return input
         }
 
         var output = input
+        let totalBlockCount = enabledBlocks.count
 
-        for block in enabledBlocks {
+        progress(
+            WorkflowRenderProgress(
+                progress: 0,
+                phase: .preparing,
+                currentBlock: nil,
+                currentBlockIndex: nil,
+                totalBlockCount: totalBlockCount
+            )
+        )
+
+        for (blockIndex, block) in enabledBlocks.enumerated() {
             try Task.checkCancellation()
+            let blockContext = WorkflowRenderBlockContext(block: block)
+            let blockBaseProgress = Double(blockIndex) / Double(totalBlockCount)
+            let blockWeight = 1 / Double(totalBlockCount)
+
+            progress(
+                WorkflowRenderProgress(
+                    progress: blockBaseProgress,
+                    phase: .processingBlock,
+                    currentBlock: blockContext,
+                    currentBlockIndex: blockIndex,
+                    totalBlockCount: totalBlockCount
+                )
+            )
 
             guard let processor = registry.processor(for: block.type) else {
                 throw WorkflowRendererError.missingProcessor(
-                    block: WorkflowRenderBlockContext(block: block)
+                    block: blockContext
                 )
             }
 
             do {
-                output = try processor.process(output, block: block)
+                if let progressReportingProcessor = processor as? any ProgressReportingEffectProcessor {
+                    output = try progressReportingProcessor.process(output, block: block) { processorProgress in
+                        progress(
+                            WorkflowRenderProgress(
+                                progress: blockBaseProgress + processorProgress.progressFraction * blockWeight,
+                                phase: processorProgress.workflowPhase,
+                                currentBlock: blockContext,
+                                currentBlockIndex: blockIndex,
+                                totalBlockCount: totalBlockCount
+                            )
+                        )
+                    }
+                } else {
+                    output = try processor.process(output, block: block)
+                }
             } catch let error as CancellationError {
                 throw error
             } catch {
                 throw WorkflowRendererError.blockFailed(
-                    block: WorkflowRenderBlockContext(block: block),
+                    block: blockContext,
                     underlyingMessage: String(describing: error)
                 )
             }
+
+            progress(
+                WorkflowRenderProgress(
+                    progress: Double(blockIndex + 1) / Double(totalBlockCount),
+                    phase: .processingBlock,
+                    currentBlock: blockContext,
+                    currentBlockIndex: blockIndex,
+                    totalBlockCount: totalBlockCount
+                )
+            )
         }
 
         try Task.checkCancellation()
-        return try applySafetyProtection(to: output, safetyPeak: safetyPeak)
+        progress(
+            WorkflowRenderProgress(
+                progress: 1,
+                phase: .finalizing,
+                currentBlock: nil,
+                currentBlockIndex: nil,
+                totalBlockCount: totalBlockCount
+            )
+        )
+
+        let protectedOutput = try applySafetyProtection(to: output, safetyPeak: safetyPeak)
+        progress(
+            WorkflowRenderProgress(
+                progress: 1,
+                phase: .completed,
+                currentBlock: nil,
+                currentBlockIndex: nil,
+                totalBlockCount: totalBlockCount
+            )
+        )
+        return protectedOutput
     }
 
     private nonisolated static func applySafetyProtection(
@@ -141,5 +268,33 @@ actor WorkflowRenderer {
             frames: buffer.frames,
             samples: protectedSamples
         )
+    }
+}
+
+private extension EffectProcessorProgress {
+    nonisolated var workflowPhase: WorkflowRenderProgress.Phase {
+        switch phase {
+        case .codecPreparing:
+            .codecPreparing
+        case .codecEncoding:
+            .codecEncoding
+        case .codecDecoding:
+            .codecDecoding
+        case .codecFinalizing:
+            .codecFinalizing
+        }
+    }
+
+    nonisolated var progressFraction: Double {
+        switch phase {
+        case .codecPreparing:
+            0.05
+        case .codecEncoding:
+            0.25
+        case .codecDecoding:
+            0.65
+        case .codecFinalizing:
+            0.9
+        }
     }
 }

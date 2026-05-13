@@ -74,6 +74,36 @@ final class AudioImportRecordingTests: XCTestCase {
     }
 
     @MainActor
+    func testImportProgressStaysIndeterminateWhileDecoding() async throws {
+        let buffer = try makeTestBuffer()
+        let importStarted = expectation(description: "Import started")
+        let project = AudioProjectViewModel(
+            audioImportService: DelayedAudioImportService(
+                result: .success(buffer),
+                started: importStarted
+            ),
+            recordingService: FakeRecordingService()
+        )
+
+        let importTask = Task {
+            await project.importAudio(from: URL(fileURLWithPath: "/tmp/input.wav"))
+        }
+
+        await fulfillment(of: [importStarted], timeout: 1)
+        let didShowImportProgress = await waitFor {
+            project.operationProgress?.kind == .audioImport
+        }
+        XCTAssertTrue(didShowImportProgress)
+
+        let progress = try XCTUnwrap(project.operationProgress)
+        XCTAssertEqual(progress.kind, .audioImport)
+        XCTAssertEqual(progress.phaseKey, "progress.phase.decodingAudio")
+        XCTAssertNil(progress.progress)
+
+        await importTask.value
+    }
+
+    @MainActor
     func testPermissionDeniedSurfacesRecordingStatus() async throws {
         let original = try makeTestBuffer()
         let project = AudioProjectViewModel(
@@ -88,6 +118,40 @@ final class AudioImportRecordingTests: XCTestCase {
         XCTAssertEqual(project.audioSourceStatusKey, "audio.recordPermissionDenied")
         XCTAssertEqual(project.playbackState, .stopped)
         XCTAssertNotNil(project.originalAudioBuffer)
+    }
+
+    @MainActor
+    func testRecordingElapsedProgressDoesNotTriggerImportOrRenderState() async throws {
+        let project = AudioProjectViewModel(
+            recordingService: FakeRecordingService(startResult: .success(()))
+        )
+
+        await project.startRecording()
+
+        let progress = try XCTUnwrap(project.operationProgress)
+        XCTAssertTrue(project.isRecording)
+        XCTAssertEqual(progress.kind, .recording)
+        XCTAssertEqual(progress.phaseKey, "progress.phase.recording")
+        XCTAssertNotNil(progress.elapsedStartDate)
+        XCTAssertNil(progress.progress)
+        XCTAssertNil(project.originalAudioBuffer)
+        XCTAssertNil(project.processedPreviewBuffer)
+        XCTAssertEqual(project.processingState, .empty)
+    }
+
+    @MainActor
+    func testCancellingRecordingSurfacesCancelledProgress() async throws {
+        let recordingService = FakeRecordingService(startResult: .success(()))
+        let project = AudioProjectViewModel(recordingService: recordingService)
+
+        await project.startRecording()
+        await project.cancelRecording()
+
+        XCTAssertFalse(project.isRecording)
+        XCTAssertEqual(recordingService.cancelCallCount, 1)
+        XCTAssertEqual(project.audioSourceStatusKey, "audio.recordCancelled")
+        XCTAssertEqual(project.operationProgress?.kind, .recording)
+        XCTAssertEqual(project.operationProgress?.terminalState, .cancelled)
     }
 
     @MainActor
@@ -159,6 +223,19 @@ final class AudioImportRecordingTests: XCTestCase {
             samples: [left, right]
         )
     }
+
+    @MainActor
+    private func waitFor(_ condition: @escaping @MainActor () -> Bool) async -> Bool {
+        for _ in 0..<50 {
+            if condition() {
+                return true
+            }
+
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+
+        return condition()
+    }
 }
 
 private struct FakeAudioImportService: AudioImportServicing {
@@ -169,9 +246,29 @@ private struct FakeAudioImportService: AudioImportServicing {
     }
 }
 
+private final class DelayedAudioImportService: AudioImportServicing {
+    let result: Result<ProjectAudioBuffer, Error>
+    let started: XCTestExpectation
+
+    init(
+        result: Result<ProjectAudioBuffer, Error>,
+        started: XCTestExpectation
+    ) {
+        self.result = result
+        self.started = started
+    }
+
+    func importAudio(from url: URL) async throws -> ProjectAudioBuffer {
+        started.fulfill()
+        try await Task.sleep(nanoseconds: 200_000_000)
+        return try result.get()
+    }
+}
+
 private final class FakeRecordingService: RecordingServicing {
     private let startResult: Result<Void, Error>
     private let stopResult: Result<ProjectAudioBuffer, Error>
+    private(set) var cancelCallCount = 0
 
     init(
         startResult: Result<Void, Error> = .success(()),
@@ -189,5 +286,7 @@ private final class FakeRecordingService: RecordingServicing {
         try stopResult.get()
     }
 
-    func cancelRecording() async {}
+    func cancelRecording() async {
+        cancelCallCount += 1
+    }
 }

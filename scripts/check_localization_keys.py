@@ -24,6 +24,7 @@ LOCALIZATION_PREFIXES = (
     "mode.",
     "parameter.",
     "playback.",
+    "progress.",
     "processing.",
     "section.",
     "singleModule.",
