@@ -61,7 +61,7 @@ nonisolated struct CodecRoundTripProcessor: ProgressReportingEffectProcessor {
         block: EffectBlock,
         progress: @escaping @Sendable (EffectProcessorProgress) -> Void
     ) throws -> AudioBuffer {
-        progress(EffectProcessorProgress(phase: .codecPreparing))
+        progress(EffectProcessorProgress(phase: .codecPreparing, fractionCompleted: 0.05))
 
         let selectedCodecID = try selectedCodecID(from: block)
         guard let capability = catalog.capability(for: selectedCodecID) else {
@@ -180,7 +180,7 @@ nonisolated enum CodecRoundTripFile {
         try? FileManager.default.removeItem(at: fileURL)
 
         do {
-            progress(EffectProcessorProgress(phase: .codecEncoding))
+            progress(EffectProcessorProgress(phase: .codecEncoding, fractionCompleted: 0.25))
             let outputFile = try AVAudioFile(
                 forWriting: fileURL,
                 settings: settings,
@@ -191,13 +191,13 @@ nonisolated enum CodecRoundTripFile {
             outputFile.close()
         }
 
-        progress(EffectProcessorProgress(phase: .codecDecoding))
+        progress(EffectProcessorProgress(phase: .codecDecoding, fractionCompleted: 0.65))
         let decoded = try AudioFileDecoder.decodeAudioFile(at: fileURL)
         guard decoded.frames > 0 else {
             throw CodecRoundTripProcessorError.emptyDecodedOutput(capability.id)
         }
 
-        progress(EffectProcessorProgress(phase: .codecFinalizing))
+        progress(EffectProcessorProgress(phase: .codecFinalizing, fractionCompleted: 0.9))
         return decoded
     }
 

@@ -32,10 +32,14 @@ extension EffectProcessorRegistry {
     ])
 }
 
-nonisolated struct SampleRateReductionProcessor: EffectProcessor {
+nonisolated struct SampleRateReductionProcessor: ProgressReportingEffectProcessor {
     let type: EffectType = .sampleRateReduction
 
-    func process(_ input: AudioBuffer, block: EffectBlock) throws -> AudioBuffer {
+    func process(
+        _ input: AudioBuffer,
+        block: EffectBlock,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
+    ) throws -> AudioBuffer {
         let targetSampleRate = try block.doubleParameter(
             EffectParameterKey.targetSampleRate,
             default: 11_025
@@ -44,14 +48,30 @@ nonisolated struct SampleRateReductionProcessor: EffectProcessor {
         let holdFrames = max(1, Int((input.sampleRate / clampedTarget).rounded()))
 
         guard holdFrames > 1 else {
+            progress(EffectProcessorProgress(fractionCompleted: 1))
             return input
         }
 
-        let processedSamples = input.samples.map { channelSamples in
-            channelSamples.indices.map { frameIndex in
-                channelSamples[(frameIndex / holdFrames) * holdFrames]
+        var reporter = EffectProgressReporter(totalUnitCount: processedSampleUnitCount(for: input))
+        var completedUnitCount = 0
+        var processedSamples: [[Float]] = []
+        processedSamples.reserveCapacity(input.samples.count)
+        reporter.reportStarted(progress: progress)
+
+        for channelSamples in input.samples {
+            var processedChannel: [Float] = []
+            processedChannel.reserveCapacity(channelSamples.count)
+
+            for frameIndex in channelSamples.indices {
+                processedChannel.append(channelSamples[(frameIndex / holdFrames) * holdFrames])
+                completedUnitCount += 1
+                reporter.reportCompletedUnitCount(completedUnitCount, progress: progress)
             }
+
+            processedSamples.append(processedChannel)
         }
+
+        reporter.finish(progress: progress)
 
         return try AudioBuffer(
             sampleRate: input.sampleRate,
@@ -62,17 +82,19 @@ nonisolated struct SampleRateReductionProcessor: EffectProcessor {
     }
 }
 
-nonisolated struct BitDepthReductionProcessor: EffectProcessor {
+nonisolated struct BitDepthReductionProcessor: ProgressReportingEffectProcessor {
     let type: EffectType = .bitDepthReduction
 
-    func process(_ input: AudioBuffer, block: EffectBlock) throws -> AudioBuffer {
+    func process(
+        _ input: AudioBuffer,
+        block: EffectBlock,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
+    ) throws -> AudioBuffer {
         let bits = try block.intParameter(EffectParameterKey.bits, default: 6)
             .clamped(to: 1...24)
 
-        let processedSamples = input.samples.map { channelSamples in
-            channelSamples.map { sample in
-                quantize(sample, bits: bits)
-            }
+        let processedSamples = mapAudioSamplesWithProgress(input, progress: progress) { sample in
+            quantize(sample, bits: bits)
         }
 
         return try AudioBuffer(
@@ -99,10 +121,14 @@ nonisolated struct BitDepthReductionProcessor: EffectProcessor {
     }
 }
 
-nonisolated struct ClippingProcessor: EffectProcessor {
+nonisolated struct ClippingProcessor: ProgressReportingEffectProcessor {
     let type: EffectType = .clipping
 
-    func process(_ input: AudioBuffer, block: EffectBlock) throws -> AudioBuffer {
+    func process(
+        _ input: AudioBuffer,
+        block: EffectBlock,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
+    ) throws -> AudioBuffer {
         let drive = Float(
             try block.doubleParameter(EffectParameterKey.drive, default: 2.5)
                 .clamped(to: 0...100)
@@ -112,11 +138,9 @@ nonisolated struct ClippingProcessor: EffectProcessor {
                 .clamped(to: 0.001...1)
         )
 
-        let processedSamples = input.samples.map { channelSamples in
-            channelSamples.map { sample in
-                let driven = sample * drive
-                return driven.clamped(to: -threshold...threshold) / threshold
-            }
+        let processedSamples = mapAudioSamplesWithProgress(input, progress: progress) { sample in
+            let driven = sample * drive
+            return driven.clamped(to: -threshold...threshold) / threshold
         }
 
         return try AudioBuffer(
@@ -128,10 +152,14 @@ nonisolated struct ClippingProcessor: EffectProcessor {
     }
 }
 
-nonisolated struct LimiterProcessor: EffectProcessor {
+nonisolated struct LimiterProcessor: ProgressReportingEffectProcessor {
     let type: EffectType = .limiter
 
-    func process(_ input: AudioBuffer, block: EffectBlock) throws -> AudioBuffer {
+    func process(
+        _ input: AudioBuffer,
+        block: EffectBlock,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
+    ) throws -> AudioBuffer {
         let inputGain = Float(
             try block.doubleParameter(EffectParameterKey.inputGain, default: 3.0)
                 .clamped(to: 0...100)
@@ -141,10 +169,8 @@ nonisolated struct LimiterProcessor: EffectProcessor {
                 .clamped(to: 0.001...1)
         )
 
-        let processedSamples = input.samples.map { channelSamples in
-            channelSamples.map { sample in
-                (sample * inputGain).clamped(to: -ceiling...ceiling)
-            }
+        let processedSamples = mapAudioSamplesWithProgress(input, progress: progress) { sample in
+            (sample * inputGain).clamped(to: -ceiling...ceiling)
         }
 
         return try AudioBuffer(

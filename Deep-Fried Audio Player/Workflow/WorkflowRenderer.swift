@@ -46,25 +46,6 @@ nonisolated struct WorkflowRenderProgress: Equatable, Sendable {
     let totalBlockCount: Int
 }
 
-nonisolated struct EffectProcessorProgress: Equatable, Sendable {
-    enum Phase: Equatable, Sendable {
-        case codecPreparing
-        case codecEncoding
-        case codecDecoding
-        case codecFinalizing
-    }
-
-    let phase: Phase
-}
-
-nonisolated protocol ProgressReportingEffectProcessor: EffectProcessor {
-    func process(
-        _ input: AudioBuffer,
-        block: EffectBlock,
-        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
-    ) throws -> AudioBuffer
-}
-
 actor WorkflowRenderer {
     private let registry: EffectProcessorRegistry
     private let safetyPeak: Float
@@ -189,7 +170,7 @@ actor WorkflowRenderer {
                     output = try progressReportingProcessor.process(output, block: block) { processorProgress in
                         progress(
                             WorkflowRenderProgress(
-                                progress: blockBaseProgress + processorProgress.progressFraction * blockWeight,
+                                progress: blockBaseProgress + processorProgress.fractionCompleted * blockWeight,
                                 phase: processorProgress.workflowPhase,
                                 currentBlock: blockContext,
                                 currentBlockIndex: blockIndex,
@@ -274,6 +255,8 @@ actor WorkflowRenderer {
 private extension EffectProcessorProgress {
     nonisolated var workflowPhase: WorkflowRenderProgress.Phase {
         switch phase {
+        case .processing:
+            .processingBlock
         case .codecPreparing:
             .codecPreparing
         case .codecEncoding:
@@ -282,19 +265,6 @@ private extension EffectProcessorProgress {
             .codecDecoding
         case .codecFinalizing:
             .codecFinalizing
-        }
-    }
-
-    nonisolated var progressFraction: Double {
-        switch phase {
-        case .codecPreparing:
-            0.05
-        case .codecEncoding:
-            0.25
-        case .codecDecoding:
-            0.65
-        case .codecFinalizing:
-            0.9
         }
     }
 }

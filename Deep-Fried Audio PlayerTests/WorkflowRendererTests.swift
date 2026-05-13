@@ -211,6 +211,31 @@ final class WorkflowRendererTests: XCTestCase {
         }
     }
 
+    func testSingleBlockProcessorProgressEmitsIntermediateWorkflowProgress() async throws {
+        let input = try makeBuffer(samples: [[0.1, -0.2, 0.3]])
+        let workflow = Workflow(
+            name: "workflow.processorProgress",
+            blocks: [
+                EffectBlock(type: .clipping, name: "effect.clipping", order: 0),
+            ]
+        )
+        let progressLog = WorkflowProgressLog()
+        let renderer = WorkflowRenderer(
+            registry: EffectProcessorRegistry(processors: [
+                FractionalProgressProcessor(type: .clipping, fractions: [0.25, 0.5, 0.75]),
+            ])
+        )
+
+        _ = try await renderer.render(input, workflow: workflow) { progress in
+            progressLog.append(progress.progress)
+        }
+
+        let values = progressLog.values()
+        XCTAssertTrue(values.contains { $0 > 0 && $0 < 1 })
+        XCTAssertTrue(values.contains { abs($0 - 0.5) < 0.000_001 })
+        XCTAssertEqual(values.last ?? -1, 1.0, accuracy: 0.000_001)
+    }
+
     private func makeBuffer(samples: [[Float]]) throws -> AudioBuffer {
         try AudioBuffer(
             sampleRate: 44_100,
@@ -320,6 +345,23 @@ private final class CancellableDelayProcessor: EffectProcessor, @unchecked Senda
             }
 
             Thread.sleep(forTimeInterval: 0.01)
+        }
+
+        return input
+    }
+}
+
+private struct FractionalProgressProcessor: ProgressReportingEffectProcessor {
+    let type: EffectType
+    let fractions: [Double]
+
+    func process(
+        _ input: AudioBuffer,
+        block: EffectBlock,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
+    ) throws -> AudioBuffer {
+        for fraction in fractions {
+            progress(EffectProcessorProgress(fractionCompleted: fraction))
         }
 
         return input

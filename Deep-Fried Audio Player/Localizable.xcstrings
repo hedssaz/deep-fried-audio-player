@@ -114,6 +114,22 @@
         }
       }
     },
+    "audio.recordCancelled" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording cancelled."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音已取消。"
+          }
+        }
+      }
+    },
     "audio.recorded" : {
       "localizations" : {
         "en" : {
@@ -142,22 +158,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法录制音频。"
-          }
-        }
-      }
-    },
-    "audio.recordCancelled" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recording cancelled."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "录音已取消。"
           }
         }
       }
@@ -222,86 +222,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "停止录音"
-          }
-        }
-      }
-    },
-    "choice.sampleRate.8000" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "8,000 Hz"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "8,000 Hz"
-          }
-        }
-      }
-    },
-    "choice.sampleRate.11025" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "11,025 Hz"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "11,025 Hz"
-          }
-        }
-      }
-    },
-    "choice.sampleRate.16000" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "16,000 Hz"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "16,000 Hz"
-          }
-        }
-      }
-    },
-    "choice.sampleRate.22050" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "22,050 Hz"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "22,050 Hz"
-          }
-        }
-      }
-    },
-    "choice.sampleRate.44100" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "44,100 Hz"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "44,100 Hz"
           }
         }
       }
@@ -382,6 +302,86 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "随机频响"
+          }
+        }
+      }
+    },
+    "choice.sampleRate.8000" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "8,000 Hz"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "8,000 Hz"
+          }
+        }
+      }
+    },
+    "choice.sampleRate.11025" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "11,025 Hz"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "11,025 Hz"
+          }
+        }
+      }
+    },
+    "choice.sampleRate.16000" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "16,000 Hz"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "16,000 Hz"
+          }
+        }
+      }
+    },
+    "choice.sampleRate.22050" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "22,050 Hz"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "22,050 Hz"
+          }
+        }
+      }
+    },
+    "choice.sampleRate.44100" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "44,100 Hz"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "44,100 Hz"
           }
         }
       }
@@ -788,6 +788,22 @@
         }
       }
     },
+    "effect.bandPass" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Band-pass"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "带通"
+          }
+        }
+      }
+    },
     "effect.bitDepthReduction" : {
       "localizations" : {
         "en" : {
@@ -868,22 +884,6 @@
         }
       }
     },
-    "effect.lowPass" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Low-pass"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "低通"
-          }
-        }
-      }
-    },
     "effect.highPass" : {
       "localizations" : {
         "en" : {
@@ -900,18 +900,50 @@
         }
       }
     },
-    "effect.bandPass" : {
+    "effect.limiter" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Band-pass"
+            "value" : "Limiter"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "带通"
+            "value" : "限制器"
+          }
+        }
+      }
+    },
+    "effect.lowPass" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Low-pass"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低通"
+          }
+        }
+      }
+    },
+    "effect.lowQualityCodec" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Low Quality Codec"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低质量编码器"
           }
         }
       }
@@ -944,38 +976,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "随机频响"
-          }
-        }
-      }
-    },
-    "effect.limiter" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Limiter"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "限制器"
-          }
-        }
-      }
-    },
-    "effect.lowQualityCodec" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Low Quality Codec"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "低质量编码器"
           }
         }
       }
@@ -1076,54 +1076,6 @@
         }
       }
     },
-    "parameter.bits" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bit Depth"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "位深"
-          }
-        }
-      }
-    },
-    "parameter.bitRateKbps" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bitrate"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "码率"
-          }
-        }
-      }
-    },
-    "parameter.ceiling" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Output Ceiling"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "输出上限"
-          }
-        }
-      }
-    },
     "parameter.attack" : {
       "localizations" : {
         "en" : {
@@ -1152,6 +1104,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "频段数量"
+          }
+        }
+      }
+    },
+    "parameter.bitRateKbps" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bitrate"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "码率"
+          }
+        }
+      }
+    },
+    "parameter.bits" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bit Depth"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "位深"
+          }
+        }
+      }
+    },
+    "parameter.ceiling" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Output Ceiling"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输出上限"
           }
         }
       }
@@ -1636,54 +1636,6 @@
         }
       }
     },
-    "playback.original" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Original"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "原始音频"
-          }
-        }
-      }
-    },
-    "playback.processed" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Processed"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "处理后音频"
-          }
-        }
-      }
-    },
-    "playback.stop" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stop"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "停止"
-          }
-        }
-      }
-    },
     "playback.failed" : {
       "localizations" : {
         "en" : {
@@ -1732,6 +1684,22 @@
         }
       }
     },
+    "playback.original" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Original"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始音频"
+          }
+        }
+      }
+    },
     "playback.playingOriginal" : {
       "localizations" : {
         "en" : {
@@ -1764,6 +1732,38 @@
         }
       }
     },
+    "playback.processed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Processed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "处理后音频"
+          }
+        }
+      }
+    },
+    "playback.stop" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止"
+          }
+        }
+      }
+    },
     "playback.unavailableWhileRecording" : {
       "localizations" : {
         "en" : {
@@ -1776,6 +1776,86 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请先停止录音，再播放音频。"
+          }
+        }
+      }
+    },
+    "processing.dirty" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preview needs rendering."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预览需要重新渲染。"
+          }
+        }
+      }
+    },
+    "processing.empty" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No audio loaded."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未载入音频。"
+          }
+        }
+      }
+    },
+    "processing.failed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Processing failed."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "处理失败。"
+          }
+        }
+      }
+    },
+    "processing.processing" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Processing..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在处理..."
+          }
+        }
+      }
+    },
+    "processing.ready" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Processed preview is ready."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "处理后预览已就绪。"
           }
         }
       }
@@ -1957,6 +2037,7 @@
       }
     },
     "progress.phase.playing" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2192,86 +2273,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "第 %lld / %lld 个模块"
-          }
-        }
-      }
-    },
-    "processing.dirty" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preview needs rendering."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "预览需要重新渲染。"
-          }
-        }
-      }
-    },
-    "processing.empty" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No audio loaded."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "尚未载入音频。"
-          }
-        }
-      }
-    },
-    "processing.failed" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Processing failed."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "处理失败。"
-          }
-        }
-      }
-    },
-    "processing.processing" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Processing..."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在处理..."
-          }
-        }
-      }
-    },
-    "processing.ready" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Processed preview is ready."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "处理后预览已就绪。"
           }
         }
       }
@@ -2679,38 +2680,6 @@
         }
       }
     },
-    "unit.hz" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hz"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hz"
-          }
-        }
-      }
-    },
-    "unit.kbps" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "kbps"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "kbps"
-          }
-        }
-      }
-    },
     "unit.db" : {
       "localizations" : {
         "en" : {
@@ -2739,6 +2708,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "dB/倍频程"
+          }
+        }
+      }
+    },
+    "unit.hz" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hz"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hz"
+          }
+        }
+      }
+    },
+    "unit.kbps" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "kbps"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "kbps"
           }
         }
       }
@@ -2935,22 +2936,6 @@
         }
       }
     },
-    "workflow.blockEnabled" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enabled"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "启用"
-          }
-        }
-      }
-    },
     "workflow.blockDisabled" : {
       "localizations" : {
         "en" : {
@@ -2963,6 +2948,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已停用"
+          }
+        }
+      }
+    },
+    "workflow.blockEnabled" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enabled"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用"
           }
         }
       }
@@ -3047,22 +3048,6 @@
         }
       }
     },
-    "workflow.modulePicker" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Module"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "模块"
-          }
-        }
-      }
-    },
     "workflow.moduleDetails" : {
       "localizations" : {
         "en" : {
@@ -3075,6 +3060,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "模块详情"
+          }
+        }
+      }
+    },
+    "workflow.modulePicker" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Module"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模块"
           }
         }
       }
@@ -3287,22 +3288,6 @@
         }
       }
     },
-    "workflow.selectModulePrompt" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select a module to edit parameters."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选择一个模块来编辑参数。"
-          }
-        }
-      }
-    },
     "workflow.savedPresets" : {
       "localizations" : {
         "en" : {
@@ -3331,6 +3316,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "保存预设"
+          }
+        }
+      }
+    },
+    "workflow.selectModulePrompt" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a module to edit parameters."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择一个模块来编辑参数。"
           }
         }
       }

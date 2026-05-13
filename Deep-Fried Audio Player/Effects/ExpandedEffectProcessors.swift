@@ -8,10 +8,14 @@
 import Accelerate
 import Foundation
 
-nonisolated struct FilterEQProcessor: EffectProcessor {
+nonisolated struct FilterEQProcessor: ProgressReportingEffectProcessor {
     let type: EffectType = .filterEQ
 
-    func process(_ input: AudioBuffer, block: EffectBlock) throws -> AudioBuffer {
+    func process(
+        _ input: AudioBuffer,
+        block: EffectBlock,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
+    ) throws -> AudioBuffer {
         let modeValue = try block.choiceParameter(
             EffectParameterKey.mode,
             default: FilterEQMode.lowPass.rawValue
@@ -23,21 +27,57 @@ nonisolated struct FilterEQProcessor: EffectProcessor {
         )
 
         guard mix > 0 else {
+            progress(EffectProcessorProgress(fractionCompleted: 1))
             return input
         }
 
+        var reporter = EffectProgressReporter(totalUnitCount: try progressUnitCount(for: mode, input: input, block: block))
+        var completedUnitCount = 0
+        reporter.reportStarted(progress: progress)
+
         let processedSamples: [[Float]] = switch mode {
         case .lowPass:
-            try processLowPass(input, block: block)
+            try processLowPass(
+                input,
+                block: block,
+                completedUnitCount: &completedUnitCount,
+                reporter: &reporter,
+                progress: progress
+            )
         case .highPass:
-            try processHighPass(input, block: block)
+            try processHighPass(
+                input,
+                block: block,
+                completedUnitCount: &completedUnitCount,
+                reporter: &reporter,
+                progress: progress
+            )
         case .bandPass:
-            try processBandPass(input, block: block)
+            try processBandPass(
+                input,
+                block: block,
+                completedUnitCount: &completedUnitCount,
+                reporter: &reporter,
+                progress: progress
+            )
         case .notch:
-            try processNotch(input, block: block)
+            try processNotch(
+                input,
+                block: block,
+                completedUnitCount: &completedUnitCount,
+                reporter: &reporter,
+                progress: progress
+            )
         case .randomFrequencyResponse:
-            try processRandomFrequencyResponse(input, block: block)
+            try processRandomFrequencyResponse(
+                input,
+                block: block,
+                completedUnitCount: &completedUnitCount,
+                reporter: &reporter,
+                progress: progress
+            )
         }
+        reporter.finish(progress: progress)
 
         return try AudioBuffer(
             sampleRate: input.sampleRate,
@@ -47,7 +87,13 @@ nonisolated struct FilterEQProcessor: EffectProcessor {
         )
     }
 
-    private func processLowPass(_ input: AudioBuffer, block: EffectBlock) throws -> [[Float]] {
+    private func processLowPass(
+        _ input: AudioBuffer,
+        block: EffectBlock,
+        completedUnitCount: inout Int,
+        reporter: inout EffectProgressReporter,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
+    ) throws -> [[Float]] {
         let cutoff = try clampedFrequency(
             block.doubleParameter(EffectParameterKey.cutoff, default: 3_200),
             sampleRate: input.sampleRate
@@ -61,11 +107,24 @@ nonisolated struct FilterEQProcessor: EffectProcessor {
         )
 
         return input.samples.map {
-            apply(coefficients, to: $0, passCount: passCount)
+            apply(
+                coefficients,
+                to: $0,
+                passCount: passCount,
+                completedUnitCount: &completedUnitCount,
+                reporter: &reporter,
+                progress: progress
+            )
         }
     }
 
-    private func processHighPass(_ input: AudioBuffer, block: EffectBlock) throws -> [[Float]] {
+    private func processHighPass(
+        _ input: AudioBuffer,
+        block: EffectBlock,
+        completedUnitCount: inout Int,
+        reporter: inout EffectProgressReporter,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
+    ) throws -> [[Float]] {
         let cutoff = try clampedFrequency(
             block.doubleParameter(EffectParameterKey.cutoff, default: 3_200),
             sampleRate: input.sampleRate
@@ -79,11 +138,24 @@ nonisolated struct FilterEQProcessor: EffectProcessor {
         )
 
         return input.samples.map {
-            apply(coefficients, to: $0, passCount: passCount)
+            apply(
+                coefficients,
+                to: $0,
+                passCount: passCount,
+                completedUnitCount: &completedUnitCount,
+                reporter: &reporter,
+                progress: progress
+            )
         }
     }
 
-    private func processBandPass(_ input: AudioBuffer, block: EffectBlock) throws -> [[Float]] {
+    private func processBandPass(
+        _ input: AudioBuffer,
+        block: EffectBlock,
+        completedUnitCount: inout Int,
+        reporter: inout EffectProgressReporter,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
+    ) throws -> [[Float]] {
         let lowCut = try clampedFrequency(
             block.doubleParameter(EffectParameterKey.lowCut, default: 300),
             sampleRate: input.sampleRate
@@ -109,12 +181,32 @@ nonisolated struct FilterEQProcessor: EffectProcessor {
         )
 
         return input.samples.map {
-            let highPassed = apply(highPass, to: $0, passCount: passCount)
-            return apply(lowPass, to: highPassed, passCount: passCount)
+            let highPassed = apply(
+                highPass,
+                to: $0,
+                passCount: passCount,
+                completedUnitCount: &completedUnitCount,
+                reporter: &reporter,
+                progress: progress
+            )
+            return apply(
+                lowPass,
+                to: highPassed,
+                passCount: passCount,
+                completedUnitCount: &completedUnitCount,
+                reporter: &reporter,
+                progress: progress
+            )
         }
     }
 
-    private func processNotch(_ input: AudioBuffer, block: EffectBlock) throws -> [[Float]] {
+    private func processNotch(
+        _ input: AudioBuffer,
+        block: EffectBlock,
+        completedUnitCount: inout Int,
+        reporter: inout EffectProgressReporter,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
+    ) throws -> [[Float]] {
         let center = try clampedFrequency(
             block.doubleParameter(EffectParameterKey.centerFrequency, default: 1_000),
             sampleRate: input.sampleRate
@@ -134,13 +226,26 @@ nonisolated struct FilterEQProcessor: EffectProcessor {
             q: q
         )
         let notched = input.samples.map {
-            apply(coefficients, to: $0, passCount: passCount)
+            apply(
+                coefficients,
+                to: $0,
+                passCount: passCount,
+                completedUnitCount: &completedUnitCount,
+                reporter: &reporter,
+                progress: progress
+            )
         }
 
         return blend(dry: input.samples, wet: notched, mix: depth)
     }
 
-    private func processRandomFrequencyResponse(_ input: AudioBuffer, block: EffectBlock) throws -> [[Float]] {
+    private func processRandomFrequencyResponse(
+        _ input: AudioBuffer,
+        block: EffectBlock,
+        completedUnitCount: inout Int,
+        reporter: inout EffectProgressReporter,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
+    ) throws -> [[Float]] {
         let bandCount = try block.intParameter(EffectParameterKey.bandCount, default: 8)
             .clamped(to: 2...48)
         let frequencyRange = try block.rangeParameter(
@@ -185,9 +290,40 @@ nonisolated struct FilterEQProcessor: EffectProcessor {
         }
 
         return input.samples.map { channelSamples in
-            filters.reduce(channelSamples) { samples, coefficients in
-                apply(coefficients, to: samples, passCount: passCount)
+            var output = channelSamples
+
+            for coefficients in filters {
+                output = apply(
+                    coefficients,
+                    to: output,
+                    passCount: passCount,
+                    completedUnitCount: &completedUnitCount,
+                    reporter: &reporter,
+                    progress: progress
+                )
             }
+
+            return output
+        }
+    }
+
+    private func progressUnitCount(
+        for mode: FilterEQMode,
+        input: AudioBuffer,
+        block: EffectBlock
+    ) throws -> Int {
+        let baseUnitCount = processedSampleUnitCount(for: input)
+        let passCount = try slopePassCount(from: block)
+
+        switch mode {
+        case .lowPass, .highPass, .notch:
+            return baseUnitCount * passCount
+        case .bandPass:
+            return baseUnitCount * passCount * 2
+        case .randomFrequencyResponse:
+            let bandCount = try block.intParameter(EffectParameterKey.bandCount, default: 8)
+                .clamped(to: 2...48)
+            return baseUnitCount * passCount * bandCount
         }
     }
 
@@ -215,23 +351,39 @@ nonisolated struct FilterEQProcessor: EffectProcessor {
     private func apply(
         _ coefficients: BiquadCoefficients,
         to samples: [Float],
-        passCount: Int
+        passCount: Int,
+        completedUnitCount: inout Int,
+        reporter: inout EffectProgressReporter,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
     ) -> [Float] {
         var output = samples
 
         for _ in 0..<max(1, passCount) {
             var filter = BiquadFilter(coefficients: coefficients)
-            output = output.map { filter.process($0) }
+            var nextOutput: [Float] = []
+            nextOutput.reserveCapacity(output.count)
+
+            for sample in output {
+                nextOutput.append(filter.process(sample))
+                completedUnitCount += 1
+                reporter.reportCompletedUnitCount(completedUnitCount, progress: progress)
+            }
+
+            output = nextOutput
         }
 
         return output
     }
 }
 
-nonisolated struct CompressorProcessor: EffectProcessor {
+nonisolated struct CompressorProcessor: ProgressReportingEffectProcessor {
     let type: EffectType = .compressor
 
-    func process(_ input: AudioBuffer, block: EffectBlock) throws -> AudioBuffer {
+    func process(
+        _ input: AudioBuffer,
+        block: EffectBlock,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
+    ) throws -> AudioBuffer {
         let thresholdDB = try block.doubleParameter(EffectParameterKey.threshold, default: -18.0)
             .clamped(to: -80.0...0.0)
         let ratio = try block.doubleParameter(EffectParameterKey.ratio, default: 8.0)
@@ -253,6 +405,10 @@ nonisolated struct CompressorProcessor: EffectProcessor {
                 .clamped(to: 0.0...1.0)
         )
 
+        var reporter = EffectProgressReporter(totalUnitCount: processedSampleUnitCount(for: input))
+        var completedUnitCount = 0
+        reporter.reportStarted(progress: progress)
+
         let attackCoefficient = smoothingCoefficient(milliseconds: attackMS, sampleRate: input.sampleRate)
         let releaseCoefficient = smoothingCoefficient(milliseconds: releaseMS, sampleRate: input.sampleRate)
         let processedSamples = input.samples.map { channelSamples in
@@ -264,9 +420,13 @@ nonisolated struct CompressorProcessor: EffectProcessor {
                 releaseCoefficient: releaseCoefficient,
                 inputGain: inputGain,
                 makeupGain: makeupGain,
-                mix: mix
+                mix: mix,
+                completedUnitCount: &completedUnitCount,
+                reporter: &reporter,
+                progress: progress
             )
         }
+        reporter.finish(progress: progress)
 
         return try AudioBuffer(
             sampleRate: input.sampleRate,
@@ -284,11 +444,16 @@ nonisolated struct CompressorProcessor: EffectProcessor {
         releaseCoefficient: Float,
         inputGain: Float,
         makeupGain: Float,
-        mix: Float
+        mix: Float,
+        completedUnitCount: inout Int,
+        reporter: inout EffectProgressReporter,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
     ) -> [Float] {
         var envelope = Float.zero
+        var output: [Float] = []
+        output.reserveCapacity(samples.count)
 
-        return samples.map { dry in
+        for dry in samples {
             let driven = dry * inputGain
             let level = abs(driven)
             let coefficient = level > envelope ? attackCoefficient : releaseCoefficient
@@ -305,8 +470,12 @@ nonisolated struct CompressorProcessor: EffectProcessor {
 
             let gain = pow(10, gainDB / 20)
             let wet = driven * gain * makeupGain
-            return (dry * (1 - mix)) + (wet * mix)
+            output.append((dry * (1 - mix)) + (wet * mix))
+            completedUnitCount += 1
+            reporter.reportCompletedUnitCount(completedUnitCount, progress: progress)
         }
+
+        return output
     }
 
     private func smoothingCoefficient(milliseconds: Double, sampleRate: Double) -> Float {
@@ -319,10 +488,14 @@ nonisolated struct CompressorProcessor: EffectProcessor {
     }
 }
 
-nonisolated struct SpectralDamageProcessor: EffectProcessor {
+nonisolated struct SpectralDamageProcessor: ProgressReportingEffectProcessor {
     let type: EffectType = .spectralDamage
 
-    func process(_ input: AudioBuffer, block: EffectBlock) throws -> AudioBuffer {
+    func process(
+        _ input: AudioBuffer,
+        block: EffectBlock,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
+    ) throws -> AudioBuffer {
         let modeValue = try block.choiceParameter(
             EffectParameterKey.mode,
             default: SpectralDamageMode.keepTopKFrequencyBins.rawValue
@@ -352,6 +525,7 @@ nonisolated struct SpectralDamageProcessor: EffectProcessor {
         )
 
         guard mix > 0, input.frames > 0 else {
+            progress(EffectProcessorProgress(fractionCompleted: 1))
             return input
         }
 
@@ -365,6 +539,7 @@ nonisolated struct SpectralDamageProcessor: EffectProcessor {
                 vDSP_Length(powerOfTwoWindowSize),
                 vDSP_DFT_Direction.INVERSE
               ) else {
+            progress(EffectProcessorProgress(fractionCompleted: 1))
             return input
         }
         defer {
@@ -372,19 +547,40 @@ nonisolated struct SpectralDamageProcessor: EffectProcessor {
             vDSP_DFT_DestroySetup(inverseSetup)
         }
 
-        let wetSamples = input.samples.map { channelSamples in
-            keepTopKFrequencyBins(
-                channelSamples,
-                sampleRate: input.sampleRate,
-                windowSize: powerOfTwoWindowSize,
-                overlap: overlap,
-                componentCount: componentCount,
-                minFrequency: minFrequency,
-                maxFrequency: maxFrequency,
-                forwardSetup: forwardSetup,
-                inverseSetup: inverseSetup
+        let hopSize = max(1, Int((Double(powerOfTwoWindowSize) * (1.0 - overlap)).rounded()))
+        var reporter = EffectProgressReporter(
+            totalUnitCount: input.samples.reduce(0) { total, channelSamples in
+                total + spectralWindowCount(
+                    sampleCount: channelSamples.count,
+                    windowSize: powerOfTwoWindowSize,
+                    hopSize: hopSize
+                )
+            }
+        )
+        var completedWindowCount = 0
+        var wetSamples: [[Float]] = []
+        wetSamples.reserveCapacity(input.samples.count)
+        reporter.reportStarted(progress: progress)
+
+        for channelSamples in input.samples {
+            wetSamples.append(
+                keepTopKFrequencyBins(
+                    channelSamples,
+                    sampleRate: input.sampleRate,
+                    windowSize: powerOfTwoWindowSize,
+                    hopSize: hopSize,
+                    componentCount: componentCount,
+                    minFrequency: minFrequency,
+                    maxFrequency: maxFrequency,
+                    forwardSetup: forwardSetup,
+                    inverseSetup: inverseSetup,
+                    completedWindowCount: &completedWindowCount,
+                    reporter: &reporter,
+                    progress: progress
+                )
             )
         }
+        reporter.finish(progress: progress)
 
         return try AudioBuffer(
             sampleRate: input.sampleRate,
@@ -398,14 +594,16 @@ nonisolated struct SpectralDamageProcessor: EffectProcessor {
         _ samples: [Float],
         sampleRate: Double,
         windowSize: Int,
-        overlap: Double,
+        hopSize: Int,
         componentCount: Int,
         minFrequency: Double,
         maxFrequency: Double,
         forwardSetup: vDSP_DFT_Setup,
-        inverseSetup: vDSP_DFT_Setup
+        inverseSetup: vDSP_DFT_Setup,
+        completedWindowCount: inout Int,
+        reporter: inout EffectProgressReporter,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
     ) -> [Float] {
-        let hopSize = max(1, Int((Double(windowSize) * (1.0 - overlap)).rounded()))
         let window = hannWindow(size: windowSize)
         var output = [Float](repeating: 0, count: samples.count)
         var weights = [Float](repeating: 0, count: samples.count)
@@ -466,6 +664,9 @@ nonisolated struct SpectralDamageProcessor: EffectProcessor {
                 weights[sampleIndex] += weightedWindow
             }
 
+            completedWindowCount += 1
+            reporter.reportCompletedUnitCount(completedWindowCount, progress: progress)
+
             if start + windowSize >= samples.count {
                 break
             }
@@ -481,6 +682,27 @@ nonisolated struct SpectralDamageProcessor: EffectProcessor {
 
             return output[index] / weight
         }
+    }
+
+    private func spectralWindowCount(sampleCount: Int, windowSize: Int, hopSize: Int) -> Int {
+        guard sampleCount > 0 else {
+            return 0
+        }
+
+        var count = 0
+        var start = 0
+
+        repeat {
+            count += 1
+
+            if start + windowSize >= sampleCount {
+                break
+            }
+
+            start += hopSize
+        } while start < sampleCount
+
+        return count
     }
 
     private func keepTopComponents(

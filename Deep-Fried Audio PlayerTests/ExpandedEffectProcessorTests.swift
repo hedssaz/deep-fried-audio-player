@@ -122,6 +122,49 @@ final class ExpandedEffectProcessorTests: XCTestCase {
         XCTAssertNotEqual(sparseOutput.samples, denserOutput.samples)
     }
 
+    func testExpandedEffectProgressReportingMatchesPlainOutputForRepresentativeBlocks() throws {
+        let input = try makeMultiToneBuffer()
+        var spectralBlock = EffectBlock.defaultBlock(type: .spectralDamage, order: 0)
+        setParameter(&spectralBlock, key: EffectParameterKey.windowSize, value: .choice("512"))
+
+        let cases: [(EffectType, EffectBlock)] = [
+            (.filterEQ, randomFrequencyResponseBlock(seed: 123)),
+            (.compressor, EffectBlock.defaultBlock(type: .compressor, order: 0)),
+            (.spectralDamage, spectralBlock),
+        ]
+
+        for (type, block) in cases {
+            let processor = try XCTUnwrap(EffectProcessorRegistry.builtIn.processor(for: type))
+            let progressProcessor = try XCTUnwrap(processor as? any ProgressReportingEffectProcessor)
+            let progressLog = ExpandedEffectProgressLog()
+
+            let plainOutput = try processor.process(input, block: block)
+            let progressOutput = try progressProcessor.process(input, block: block) { progress in
+                progressLog.append(progress.fractionCompleted)
+            }
+
+            XCTAssertEqual(progressOutput, plainOutput, "\(type.rawValue) changed output while reporting progress.")
+            XCTAssertEqual(progressLog.values().last ?? -1, 1.0, accuracy: 0.000_001)
+        }
+    }
+
+    func testSpectralDamageReportsIntermediateWindowProgressAndCompletes() throws {
+        let input = try makeMultiToneBuffer()
+        let baseProcessor = try XCTUnwrap(EffectProcessorRegistry.builtIn.processor(for: .spectralDamage))
+        let processor = try XCTUnwrap(baseProcessor as? any ProgressReportingEffectProcessor)
+        var block = EffectBlock.defaultBlock(type: .spectralDamage, order: 0)
+        setParameter(&block, key: EffectParameterKey.windowSize, value: .choice("512"))
+        let progressLog = ExpandedEffectProgressLog()
+
+        _ = try processor.process(input, block: block) { progress in
+            progressLog.append(progress.fractionCompleted)
+        }
+
+        let values = progressLog.values()
+        XCTAssertTrue(values.contains { $0 > 0 && $0 < 1 })
+        XCTAssertEqual(values.last ?? -1, 1.0, accuracy: 0.000_001)
+    }
+
     @MainActor
     func testAvailableModuleListsExposeUnifiedFilterEQAndHideLegacyFilters() {
         let project = AudioProjectViewModel()
@@ -190,5 +233,22 @@ final class ExpandedEffectProcessorTests: XCTestCase {
             channelCount: 1,
             samples: [samples]
         )
+    }
+}
+
+private final class ExpandedEffectProgressLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var progressValues: [Double] = []
+
+    func append(_ value: Double) {
+        lock.withLock {
+            progressValues.append(value)
+        }
+    }
+
+    func values() -> [Double] {
+        lock.withLock {
+            progressValues
+        }
     }
 }

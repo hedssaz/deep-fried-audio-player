@@ -64,6 +64,25 @@ final class FirstEffectProcessorTests: XCTestCase {
         }
     }
 
+    func testBuiltInNonCodecProgressReportingMatchesPlainOutput() throws {
+        let input = try makeBuffer()
+
+        for type in EffectType.firstRealEffectTypes {
+            let processor = try XCTUnwrap(EffectProcessorRegistry.builtIn.processor(for: type))
+            let progressProcessor = try XCTUnwrap(processor as? any ProgressReportingEffectProcessor)
+            let block = EffectBlock.defaultBlock(type: type, order: 0)
+            let progressLog = FirstEffectProgressLog()
+
+            let plainOutput = try processor.process(input, block: block)
+            let progressOutput = try progressProcessor.process(input, block: block) { progress in
+                progressLog.append(progress.fractionCompleted)
+            }
+
+            XCTAssertEqual(progressOutput, plainOutput, "\(type.rawValue) changed output while reporting progress.")
+            XCTAssertEqual(progressLog.values().last ?? -1, 1.0, accuracy: 0.000_001)
+        }
+    }
+
     func testFirstRealEffectOutputsChangeWhenParametersChange() throws {
         let input = try makeBuffer()
 
@@ -167,5 +186,22 @@ final class FirstEffectProcessorTests: XCTestCase {
                 [0.83, 0.54, 0.22, -0.04, -0.28, -0.47, -0.71, -0.99],
             ]
         )
+    }
+}
+
+private final class FirstEffectProgressLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var progressValues: [Double] = []
+
+    func append(_ value: Double) {
+        lock.withLock {
+            progressValues.append(value)
+        }
+    }
+
+    func values() -> [Double] {
+        lock.withLock {
+            progressValues
+        }
     }
 }

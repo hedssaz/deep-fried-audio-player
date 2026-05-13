@@ -82,6 +82,40 @@ final class SingleModuleModeTests: XCTestCase {
         await renderTask.value
     }
 
+    func testSingleModuleProgressCanExposeIntermediatePercent() async throws {
+        let intermediateProgressReported = expectation(description: "Intermediate progress reported")
+        let renderer = WorkflowRenderer(
+            registry: EffectProcessorRegistry(processors: [
+                IntermediateProgressProcessor(
+                    type: .clipping,
+                    intermediateProgressReported: intermediateProgressReported
+                ),
+            ])
+        )
+        let project = AudioProjectViewModel(
+            renderer: renderer,
+            modulePresetStore: ModulePresetStore(directoryURL: makeTemporaryDirectory())
+        )
+        project.selectSingleModuleType(.clipping)
+        project.originalAudioBuffer = try SampleAudioFactory.makeDevelopmentSample(duration: 0.05)
+
+        let renderTask = Task {
+            await project.renderSingleModulePreview()
+        }
+
+        await fulfillment(of: [intermediateProgressReported], timeout: 1)
+        let didShowIntermediateProgress = await waitFor {
+            guard let progress = project.operationProgress?.progress else {
+                return false
+            }
+
+            return progress > 0 && progress < 1
+        }
+        XCTAssertTrue(didShowIntermediateProgress)
+
+        await renderTask.value
+    }
+
     func testModulePresetStoreRoundTripsJSON() async throws {
         let store = ModulePresetStore(directoryURL: makeTemporaryDirectory())
         let block = EffectBlock.defaultBlock(type: .bitDepthReduction, order: 0, presetName: "Crunch")
@@ -186,6 +220,30 @@ private final class ProgressDelayProcessor: EffectProcessor, @unchecked Sendable
 
     func process(_ input: AudioBuffer, block: EffectBlock) throws -> AudioBuffer {
         started.fulfill()
+        Thread.sleep(forTimeInterval: 0.2)
+        return input
+    }
+}
+
+private final class IntermediateProgressProcessor: ProgressReportingEffectProcessor, @unchecked Sendable {
+    let type: EffectType
+    private let intermediateProgressReported: XCTestExpectation
+
+    init(
+        type: EffectType,
+        intermediateProgressReported: XCTestExpectation
+    ) {
+        self.type = type
+        self.intermediateProgressReported = intermediateProgressReported
+    }
+
+    func process(
+        _ input: AudioBuffer,
+        block: EffectBlock,
+        progress: @escaping @Sendable (EffectProcessorProgress) -> Void
+    ) throws -> AudioBuffer {
+        progress(EffectProcessorProgress(fractionCompleted: 0.42))
+        intermediateProgressReported.fulfill()
         Thread.sleep(forTimeInterval: 0.2)
         return input
     }
