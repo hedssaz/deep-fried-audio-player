@@ -39,6 +39,8 @@ nonisolated enum EffectParameterKey {
     static let minFrequency = "minFrequency"
     static let maxFrequency = "maxFrequency"
     static let preservePhase = "preservePhase"
+    static let codec = "codec"
+    static let bitRateKbps = "bitRateKbps"
 }
 
 nonisolated enum FilterEQMode: String, CaseIterable, Codable, Sendable {
@@ -87,6 +89,16 @@ extension EffectType {
     ]
 
     static let firstRealEffectTypes = userFacingNonCodecEffectTypes
+
+    static var userFacingCodecEffectTypes: [EffectType] {
+        CodecCapabilityCatalog.current.hasAvailableRoundTripCodec
+            ? [.bitrateReduction, .lowQualityCodec]
+            : []
+    }
+
+    static var availableUserFacingEffectTypes: [EffectType] {
+        userFacingNonCodecEffectTypes + userFacingCodecEffectTypes
+    }
 
     static let legacyIndividualFilterTypes: [EffectType] = [
         .lowPass,
@@ -418,15 +430,52 @@ extension EffectType {
                     unitKey: "unit.linear"
                 ),
             ]
+        case .bitrateReduction:
+            Self.codecDefaultParameters(defaultBitRateKbps: 48)
+        case .lowQualityCodec:
+            Self.codecDefaultParameters(defaultBitRateKbps: 24)
         case .lowPass,
              .highPass,
              .bandPass,
              .notch,
-             .randomFrequencyResponse,
-             .bitrateReduction,
-             .lowQualityCodec:
+             .randomFrequencyResponse:
             []
         }
+    }
+
+    private static func codecDefaultParameters(defaultBitRateKbps: Int) -> [EffectParameter] {
+        let catalog = CodecCapabilityCatalog.current
+        let choices = catalog.availableRoundTripChoices()
+
+        guard let defaultCapability = catalog.defaultRoundTripCapability,
+              !choices.isEmpty else {
+            return []
+        }
+
+        let bitRateRange = defaultCapability.bitRateRange ?? CodecBitRateRange(
+            minKbps: 16,
+            maxKbps: 320
+        )
+        let clampedDefaultBitRate = defaultBitRateKbps.clamped(to: bitRateRange.closedRange)
+
+        return [
+            EffectParameter(
+                key: EffectParameterKey.codec,
+                labelKey: "parameter.codec",
+                value: .choice(defaultCapability.id.rawValue),
+                choices: choices
+            ),
+            EffectParameter(
+                key: EffectParameterKey.bitRateKbps,
+                labelKey: "parameter.bitRateKbps",
+                value: .int(clampedDefaultBitRate),
+                valueRange: .int(
+                    min: bitRateRange.minKbps,
+                    max: bitRateRange.maxKbps
+                ),
+                unitKey: "unit.kbps"
+            ),
+        ]
     }
 }
 

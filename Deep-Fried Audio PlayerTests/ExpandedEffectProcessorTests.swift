@@ -131,6 +131,16 @@ final class ExpandedEffectProcessorTests: XCTestCase {
         XCTAssertTrue(project.availableSingleModuleTypes.contains(.compressor))
         XCTAssertTrue(project.availableWorkflowModuleTypes.contains(.spectralDamage))
 
+        let shouldExposeCodecModules = CodecCapabilityCatalog.current.hasAvailableRoundTripCodec
+        XCTAssertEqual(
+            project.availableSingleModuleTypes.contains(.bitrateReduction),
+            shouldExposeCodecModules
+        )
+        XCTAssertEqual(
+            project.availableWorkflowModuleTypes.contains(.lowQualityCodec),
+            shouldExposeCodecModules
+        )
+
         for legacyType in EffectType.legacyIndividualFilterTypes {
             XCTAssertFalse(project.availableSingleModuleTypes.contains(legacyType))
             XCTAssertFalse(project.availableWorkflowModuleTypes.contains(legacyType))

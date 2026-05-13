@@ -71,8 +71,8 @@ final class AudioProjectViewModel: ObservableObject {
     @Published var audioSourceStatusKey: String?
     @Published var playbackStatusKey: String?
 
-    let availableSingleModuleTypes = EffectType.firstRealEffectTypes
-    let availableWorkflowModuleTypes = EffectType.firstRealEffectTypes
+    let availableSingleModuleTypes = EffectType.availableUserFacingEffectTypes
+    let availableWorkflowModuleTypes = EffectType.availableUserFacingEffectTypes
 
     private let renderer: WorkflowRenderer
     private let modulePresetStore: ModulePresetStore

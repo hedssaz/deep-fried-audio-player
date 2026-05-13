@@ -25,6 +25,7 @@ All notable changes to Deep-Fried Audio Player should be documented in this file
 - Added Step 9 Audio Import and Recording with AVFoundation file decoding, iOS/iPadOS microphone recording, visible localized source statuses, generated Info.plist microphone usage text, and focused import/recording tests.
 - Added Step 10 Playback with manual original/processed playback, stop control, single-source playback coordination, localized playback statuses, and fake-controller tests that avoid producing sound.
 - Added Step 11 Expanded Effects with a unified Filter / EQ module, Compressor envelope processing, Top-K Spectral Damage, mode-specific parameter visibility, localized effect controls, and focused processor/workflow tests.
+- Added Step 12 Codec Capability Layer with runtime AVFoundation codec round-trip detection, AAC/MP3/Apple Lossless capability modeling, unavailable/planned codec states for AMR-NB, Speex, G.711, and G.729, real codec processors, localized codec controls, and focused capability tests.
 
 ### Changed
 

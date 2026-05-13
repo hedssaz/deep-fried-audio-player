@@ -27,6 +27,8 @@ extension EffectProcessorRegistry {
         CompressorProcessor(),
         LimiterProcessor(),
         SpectralDamageProcessor(),
+        CodecRoundTripProcessor(type: .bitrateReduction),
+        CodecRoundTripProcessor(type: .lowQualityCodec),
     ])
 }
 

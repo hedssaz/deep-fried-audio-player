@@ -482,6 +482,214 @@
         }
       }
     },
+    "codec.aac" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AAC"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AAC"
+          }
+        }
+      }
+    },
+    "codec.amrNB" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AMR-NB"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AMR-NB"
+          }
+        }
+      }
+    },
+    "codec.appleLossless" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Lossless"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Lossless"
+          }
+        }
+      }
+    },
+    "codec.g711" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "G.711"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "G.711"
+          }
+        }
+      }
+    },
+    "codec.g729" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "G.729"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "G.729"
+          }
+        }
+      }
+    },
+    "codec.mp3" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MP3"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MP3"
+          }
+        }
+      }
+    },
+    "codec.reason.noRoundTripSupport" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No real encode/decode round-trip is available."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前没有可用的真实编码 / 解码往返。"
+          }
+        }
+      }
+    },
+    "codec.reason.planned" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planned for a future codec layer."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "计划在后续 codec 层支持。"
+          }
+        }
+      }
+    },
+    "codec.reason.unavailableOnDevice" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No system encoder round-trip is available on this device."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此设备没有可用的系统编码器往返能力。"
+          }
+        }
+      }
+    },
+    "codec.speex" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speex"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speex"
+          }
+        }
+      }
+    },
+    "codec.status.available" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Available"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可用"
+          }
+        }
+      }
+    },
+    "codec.status.planned" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planned"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "计划中"
+          }
+        }
+      }
+    },
+    "codec.status.unavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unavailable"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂不可用"
+          }
+        }
+      }
+    },
     "control.unavailable" : {
       "localizations" : {
         "en" : {
@@ -580,6 +788,22 @@
         }
       }
     },
+    "effect.bitrateReduction" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bitrate Reduction"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "码率降低"
+          }
+        }
+      }
+    },
     "effect.clipping" : {
       "localizations" : {
         "en" : {
@@ -640,6 +864,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "限制器"
+          }
+        }
+      }
+    },
+    "effect.lowQualityCodec" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Low Quality Codec"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低质量编码器"
           }
         }
       }
@@ -756,6 +996,22 @@
         }
       }
     },
+    "parameter.bitRateKbps" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bitrate"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "码率"
+          }
+        }
+      }
+    },
     "parameter.ceiling" : {
       "localizations" : {
         "en" : {
@@ -816,6 +1072,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "中心频率"
+          }
+        }
+      }
+    },
+    "parameter.codec" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codec"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编码器"
           }
         }
       }
@@ -1907,6 +2179,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hz"
+          }
+        }
+      }
+    },
+    "unit.kbps" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "kbps"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "kbps"
           }
         }
       }
