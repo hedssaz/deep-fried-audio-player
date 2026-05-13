@@ -17,6 +17,87 @@
         }
       }
     },
+    "audio.imported" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio imported."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音频已导入。"
+          }
+        }
+      }
+    },
+    "audio.importFailed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not import this audio file."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法导入这个音频文件。"
+          }
+        }
+      }
+    },
+    "audio.importing" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importing audio..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在导入音频..."
+          }
+        }
+      }
+    },
+    "audio.microphoneUsageDescription" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deep-Fried Audio Player needs microphone access to record audio for processing."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全损音质播放器需要麦克风权限来录制要处理的音频。"
+          }
+        }
+      }
+    },
+    "audio.processingRecording" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Processing recording..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在处理录音..."
+          }
+        }
+      }
+    },
     "audio.record" : {
       "localizations" : {
         "en" : {
@@ -33,6 +114,70 @@
         }
       }
     },
+    "audio.recorded" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording loaded."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录音已载入。"
+          }
+        }
+      }
+    },
+    "audio.recordFailed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not record audio."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法录制音频。"
+          }
+        }
+      }
+    },
+    "audio.recording" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在录音..."
+          }
+        }
+      }
+    },
+    "audio.recordPermissionDenied" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Microphone permission was denied."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "麦克风权限已被拒绝。"
+          }
+        }
+      }
+    },
     "audio.sample" : {
       "localizations" : {
         "en" : {
@@ -45,6 +190,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "示例音频"
+          }
+        }
+      }
+    },
+    "audio.stopRecording" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Recording"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止录音"
+          }
+        }
+      }
+    },
+    "choice.sampleRate.8000" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "8,000 Hz"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "8,000 Hz"
           }
         }
       }
@@ -113,22 +290,6 @@
         }
       }
     },
-    "choice.sampleRate.8000" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "8,000 Hz"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "8,000 Hz"
-          }
-        }
-      }
-    },
     "control.unavailable" : {
       "localizations" : {
         "en" : {
@@ -141,6 +302,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "暂不可用"
+          }
+        }
+      }
+    },
+    "editor.singleModule.placeholder" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Module selection and parameters will appear here."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模块选择和参数稍后会显示在这里。"
+          }
+        }
+      }
+    },
+    "editor.singleModule.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Single Module Editor"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "单模块编辑器"
+          }
+        }
+      }
+    },
+    "editor.workflow.placeholder" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Workflow blocks and ordering controls will appear here."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "工作流模块和排序控件稍后会显示在这里。"
+          }
+        }
+      }
+    },
+    "editor.workflow.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Workflow Editor"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "工作流编辑器"
           }
         }
       }
@@ -205,70 +432,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "采样率降低"
-          }
-        }
-      }
-    },
-    "editor.singleModule.placeholder" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Module selection and parameters will appear here."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "模块选择和参数稍后会显示在这里。"
-          }
-        }
-      }
-    },
-    "editor.singleModule.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Single Module Editor"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "单模块编辑器"
-          }
-        }
-      }
-    },
-    "editor.workflow.placeholder" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Workflow blocks and ordering controls will appear here."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "工作流模块和排序控件稍后会显示在这里。"
-          }
-        }
-      }
-    },
-    "editor.workflow.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Workflow Editor"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "工作流编辑器"
           }
         }
       }
@@ -867,6 +1030,7 @@
       }
     },
     "singleModule.rangeLower" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -883,6 +1047,7 @@
       }
     },
     "singleModule.rangeUpper" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -914,22 +1079,6 @@
         }
       }
     },
-    "singleModule.savePreset" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Save Preset"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "保存预设"
-          }
-        }
-      }
-    },
     "singleModule.savedPresets" : {
       "localizations" : {
         "en" : {
@@ -942,6 +1091,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已保存预设"
+          }
+        }
+      }
+    },
+    "singleModule.savePreset" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save Preset"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存预设"
           }
         }
       }
@@ -1038,6 +1203,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "x"
+          }
+        }
+      }
+    },
+    "waveform.empty" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Load or generate audio to see the waveform."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "载入或生成音频后会显示波形。"
+          }
+        }
+      }
+    },
+    "waveform.original" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Original waveform"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始波形"
+          }
+        }
+      }
+    },
+    "waveform.processed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Processed waveform"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "处理后波形"
+          }
+        }
+      }
+    },
+    "waveform.processedStale" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Processed preview needs rendering."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "处理后预览需要重新渲染。"
           }
         }
       }
@@ -1378,22 +1607,6 @@
         }
       }
     },
-    "workflow.savePreset" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Save Preset"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "保存预设"
-          }
-        }
-      }
-    },
     "workflow.savedPresets" : {
       "localizations" : {
         "en" : {
@@ -1410,66 +1623,18 @@
         }
       }
     },
-    "waveform.empty" : {
+    "workflow.savePreset" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Load or generate audio to see the waveform."
+            "value" : "Save Preset"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "载入或生成音频后会显示波形。"
-          }
-        }
-      }
-    },
-    "waveform.original" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Original waveform"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "原始波形"
-          }
-        }
-      }
-    },
-    "waveform.processed" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Processed waveform"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "处理后波形"
-          }
-        }
-      }
-    },
-    "waveform.processedStale" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Processed preview needs rendering."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "处理后预览需要重新渲染。"
+            "value" : "保存预设"
           }
         }
       }

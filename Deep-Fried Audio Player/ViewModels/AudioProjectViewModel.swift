@@ -67,6 +67,8 @@ final class AudioProjectViewModel: ObservableObject {
     @Published var selectedWorkflowPresetID: WorkflowPreset.ID?
     @Published var workflowPresetName = ""
     @Published var workflowStatusKey: String?
+    @Published var isRecording = false
+    @Published var audioSourceStatusKey: String?
 
     let availableSingleModuleTypes = EffectType.firstRealEffectTypes
     let availableWorkflowModuleTypes = EffectType.firstRealEffectTypes
@@ -74,26 +76,87 @@ final class AudioProjectViewModel: ObservableObject {
     private let renderer: WorkflowRenderer
     private let modulePresetStore: ModulePresetStore
     private let workflowPresetStore: WorkflowPresetStore
+    private let audioImportService: any AudioImportServicing
+    private let recordingService: any RecordingServicing
     private var renderTask: Task<Void, Never>?
     private var activeRenderToken: UUID?
 
     init(
         renderer: WorkflowRenderer = WorkflowRenderer(),
         modulePresetStore: ModulePresetStore = ModulePresetStore(),
-        workflowPresetStore: WorkflowPresetStore = WorkflowPresetStore()
+        workflowPresetStore: WorkflowPresetStore = WorkflowPresetStore(),
+        audioImportService: any AudioImportServicing = AudioImportService(),
+        recordingService: (any RecordingServicing)? = nil
     ) {
         self.renderer = renderer
         self.modulePresetStore = modulePresetStore
         self.workflowPresetStore = workflowPresetStore
+        self.audioImportService = audioImportService
+        self.recordingService = recordingService ?? RecordingService(importService: audioImportService)
     }
 
     func generateSampleAudio() {
         do {
-            originalAudioBuffer = try SampleAudioFactory.makeDevelopmentSample()
-            processedPreviewBuffer = nil
-            playbackState = .stopped
-            schedulePreviewRenderForCurrentMode()
+            loadAudioBuffer(
+                try SampleAudioFactory.makeDevelopmentSample(),
+                statusKey: nil
+            )
         } catch {
+            processingState = .failed(message: error.localizedDescription)
+        }
+    }
+
+    func importAudio(from url: URL) async {
+        audioSourceStatusKey = "audio.importing"
+        isRecording = false
+
+        do {
+            let buffer = try await audioImportService.importAudio(from: url)
+            loadAudioBuffer(buffer, statusKey: "audio.imported")
+        } catch {
+            audioSourceStatusKey = "audio.importFailed"
+            processedPreviewBuffer = nil
+            processingState = .failed(message: error.localizedDescription)
+        }
+    }
+
+    func startRecording() async {
+        guard !isRecording else {
+            return
+        }
+
+        audioSourceStatusKey = "audio.recording"
+
+        do {
+            try await recordingService.startRecording()
+            isRecording = true
+            playbackState = .stopped
+        } catch RecordingServiceError.permissionDenied {
+            isRecording = false
+            audioSourceStatusKey = "audio.recordPermissionDenied"
+            processingState = originalAudioBuffer == nil ? .empty : .dirty
+        } catch {
+            isRecording = false
+            audioSourceStatusKey = "audio.recordFailed"
+            processingState = .failed(message: error.localizedDescription)
+        }
+    }
+
+    func stopRecording() async {
+        guard isRecording else {
+            return
+        }
+
+        audioSourceStatusKey = "audio.processingRecording"
+
+        do {
+            let buffer = try await recordingService.stopRecording()
+            isRecording = false
+            loadAudioBuffer(buffer, statusKey: "audio.recorded")
+        } catch {
+            isRecording = false
+            audioSourceStatusKey = "audio.recordFailed"
+            processedPreviewBuffer = nil
             processingState = .failed(message: error.localizedDescription)
         }
     }
@@ -467,6 +530,14 @@ final class AudioProjectViewModel: ObservableObject {
         )
         result.insert(contentsOf: movingBlocks, at: adjustedDestination)
         return result
+    }
+
+    private func loadAudioBuffer(_ buffer: AudioBuffer, statusKey: String?) {
+        originalAudioBuffer = buffer
+        processedPreviewBuffer = nil
+        playbackState = .stopped
+        audioSourceStatusKey = statusKey
+        schedulePreviewRenderForCurrentMode()
     }
 
     private func renderSingleModulePreviewWithoutCancelling() async {

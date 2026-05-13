@@ -6,10 +6,12 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @EnvironmentObject private var project: AudioProjectViewModel
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var isShowingAudioImporter = false
 
     var body: some View {
         Group {
@@ -21,6 +23,13 @@ struct ContentView: View {
         }
         .task {
             await project.refreshPresets()
+        }
+        .fileImporter(
+            isPresented: $isShowingAudioImporter,
+            allowedContentTypes: [.audio],
+            allowsMultipleSelection: false
+        ) { result in
+            handleAudioImportResult(result)
         }
     }
 
@@ -102,14 +111,47 @@ struct ContentView: View {
 
     private var audioSourceControls: some View {
         VStack(alignment: .leading, spacing: 10) {
-            PlaceholderButton(titleKey: "audio.import", systemImage: "square.and.arrow.down")
+            Button {
+                isShowingAudioImporter = true
+            } label: {
+                Label("audio.import", systemImage: "square.and.arrow.down")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.bordered)
+            .disabled(project.isRecording)
                 .accessibilityIdentifier("audioImportButton")
-            PlaceholderButton(titleKey: "audio.record", systemImage: "mic")
+
+            Button {
+                Task {
+                    if project.isRecording {
+                        await project.stopRecording()
+                    } else {
+                        await project.startRecording()
+                    }
+                }
+            } label: {
+                Label(
+                    LocalizedStringKey(project.isRecording ? "audio.stopRecording" : "audio.record"),
+                    systemImage: project.isRecording ? "stop.circle" : "mic"
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(project.isRecording ? .red : nil)
                 .accessibilityIdentifier("audioRecordButton")
+
             ActionButton(titleKey: "audio.sample", systemImage: "waveform") {
                 project.generateSampleAudio()
             }
+                .disabled(project.isRecording)
                 .accessibilityIdentifier("audioSampleButton")
+
+            if let statusKey = project.audioSourceStatusKey {
+                Label(LocalizedStringKey(statusKey), systemImage: audioSourceStatusSystemImage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("audioSourceStatus")
+            }
         }
     }
 
@@ -204,6 +246,38 @@ struct ContentView: View {
             "checkmark.circle"
         case .failed:
             "exclamationmark.triangle"
+        }
+    }
+
+    private var audioSourceStatusSystemImage: String {
+        if project.isRecording {
+            return "record.circle"
+        }
+
+        switch project.audioSourceStatusKey {
+        case "audio.importFailed", "audio.recordFailed", "audio.recordPermissionDenied":
+            return "exclamationmark.triangle"
+        case "audio.imported", "audio.recorded":
+            return "checkmark.circle"
+        default:
+            return "info.circle"
+        }
+    }
+
+    private func handleAudioImportResult(_ result: Result<[URL], Error>) {
+        switch result {
+        case let .success(urls):
+            guard let url = urls.first else {
+                project.audioSourceStatusKey = "audio.importFailed"
+                return
+            }
+
+            Task {
+                await project.importAudio(from: url)
+            }
+        case let .failure(error):
+            project.audioSourceStatusKey = "audio.importFailed"
+            project.processingState = .failed(message: error.localizedDescription)
         }
     }
 }
