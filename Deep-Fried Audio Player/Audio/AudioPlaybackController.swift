@@ -66,16 +66,17 @@ nonisolated enum AudioBufferPCMBridge {
     }
 }
 
-@MainActor
-final class AudioPlaybackController: AudioPlaybackControlling {
+nonisolated final class AudioPlaybackController: AudioPlaybackControlling {
     private let engine = AVAudioEngine()
     private let playerNode = AVAudioPlayerNode()
     private var activePlaybackID: UUID?
 
+    @MainActor
     init() {
         engine.attach(playerNode)
     }
 
+    @MainActor
     func play(
         _ buffer: AudioBuffer,
         completion: @escaping @MainActor () -> Void
@@ -118,6 +119,7 @@ final class AudioPlaybackController: AudioPlaybackControlling {
         }
     }
 
+    @MainActor
     func stop() {
         activePlaybackID = nil
         playerNode.stop()
@@ -137,6 +139,7 @@ final class AudioPlaybackController: AudioPlaybackControlling {
     }
 
     #if os(iOS)
+    @MainActor
     private func configureAudioSessionForPlayback() throws {
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.playback, mode: .default)
@@ -144,3 +147,5 @@ final class AudioPlaybackController: AudioPlaybackControlling {
     }
     #endif
 }
+
+extension AudioPlaybackController: @unchecked Sendable {}

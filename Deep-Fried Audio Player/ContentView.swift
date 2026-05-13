@@ -194,7 +194,7 @@ struct ContentView: View {
                 titleKey: "playback.processed",
                 systemImage: "play.fill",
                 isActive: project.playbackState == .playingProcessed,
-                isDisabled: project.processedPreviewBuffer == nil || project.isRecording
+                isDisabled: !project.canPlayProcessedAudio
             ) {
                 Task {
                     await project.playProcessedAudio()
@@ -278,23 +278,35 @@ struct ContentView: View {
     private var processingSection: some View {
         ShellSection(titleKey: "section.processing", systemImage: "gearshape.2") {
             Group {
-                if let operationProgress = project.operationProgress {
+                if let operationProgress = project.operationProgress,
+                   operationProgress.isActive {
                     OperationProgressDetailView(progress: operationProgress) {
                         Task {
                             await project.cancelActiveOperation()
                         }
                     }
                 } else {
-                    HStack(spacing: 12) {
-                        Image(systemName: processingSystemImage)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 24)
-                        Text(LocalizedStringKey(processingLocalizationKey))
-                            .font(.body)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        Color.clear
-                            .frame(width: 96, height: 1)
-                            .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 12) {
+                            Image(systemName: processingSystemImage)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 24)
+                            Text(LocalizedStringKey(processingLocalizationKey))
+                                .font(.body)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+
+                        Button {
+                            Task {
+                                await project.renderProcessedPreview()
+                            }
+                        } label: {
+                            Label("processing.process", systemImage: "play.fill")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!project.canProcessPreview)
+                        .accessibilityIdentifier("processPreviewButton")
                     }
                 }
             }

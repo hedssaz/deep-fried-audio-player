@@ -247,6 +247,39 @@ final class WorkflowModeTests: XCTestCase {
         XCTAssertEqual(project.playbackState, .stopped)
     }
 
+    func testWorkflowChangesWaitForManualProcessing() async throws {
+        let project = makeProject()
+        project.mode = .workflow
+        project.addWorkflowBlock(type: .clipping)
+        project.generateSampleAudio()
+
+        XCTAssertEqual(project.processingState, .dirty)
+        XCTAssertNil(project.processedPreviewBuffer)
+
+        await project.renderProcessedPreview()
+        let firstOutput = try XCTUnwrap(project.processedPreviewBuffer)
+        XCTAssertEqual(project.processingState, .ready)
+
+        let blockID = try XCTUnwrap(project.currentWorkflow.orderedBlocks.first?.id)
+        project.updateWorkflowBlockParameter(
+            blockID: blockID,
+            key: EffectParameterKey.threshold,
+            value: .float(0.12)
+        )
+
+        XCTAssertEqual(project.processingState, .dirty)
+        XCTAssertEqual(project.processedPreviewBuffer, firstOutput)
+
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(project.processingState, .dirty)
+        XCTAssertEqual(project.processedPreviewBuffer, firstOutput)
+
+        await project.renderProcessedPreview()
+        let secondOutput = try XCTUnwrap(project.processedPreviewBuffer)
+        XCTAssertEqual(project.processingState, .ready)
+        XCTAssertNotEqual(firstOutput.samples, secondOutput.samples)
+    }
+
     func testWorkflowProgressIncludesCurrentBlockStepAndName() async throws {
         let secondBlockStarted = expectation(description: "Second workflow block started")
         let firstBlock = EffectBlock(type: .clipping, name: "effect.clipping", order: 0)

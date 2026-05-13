@@ -141,6 +141,7 @@ final class AudioExportTests: XCTestCase {
         )
         let project = AudioProjectViewModel(audioExportService: exportService)
         project.processedPreviewBuffer = try SampleAudioFactory.makeDevelopmentSample(duration: 0.05)
+        project.processingState = .ready
 
         let export = await project.prepareProcessedExport(
             format: .wav,
@@ -165,6 +166,7 @@ final class AudioExportTests: XCTestCase {
         )
         let project = AudioProjectViewModel(audioExportService: exportService)
         project.processedPreviewBuffer = try SampleAudioFactory.makeDevelopmentSample(duration: 0.05)
+        project.processingState = .ready
 
         let export = await project.prepareProcessedExport(
             format: .m4a,
@@ -188,6 +190,7 @@ final class AudioExportTests: XCTestCase {
         )
         let project = AudioProjectViewModel(audioExportService: exportService)
         project.processedPreviewBuffer = try SampleAudioFactory.makeDevelopmentSample(duration: 0.05)
+        project.processingState = .ready
 
         let export = await project.prepareProcessedExport(format: .m4a)
 
@@ -220,6 +223,7 @@ final class AudioExportTests: XCTestCase {
         )
         let project = AudioProjectViewModel(audioExportService: exportService)
         project.processedPreviewBuffer = try SampleAudioFactory.makeDevelopmentSample(duration: 0.05)
+        project.processingState = .ready
 
         let export = await project.prepareProcessedExport(format: .mp3)
 
@@ -242,6 +246,7 @@ final class AudioExportTests: XCTestCase {
         XCTAssertFalse(project.canExportProcessedAudio)
 
         project.processedPreviewBuffer = try SampleAudioFactory.makeDevelopmentSample(duration: 0.05)
+        project.processingState = .ready
         XCTAssertTrue(project.canExportProcessedAudio)
 
         await project.startRecording()

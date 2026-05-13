@@ -1956,6 +1956,22 @@
         }
       }
     },
+    "processing.process" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Process"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "处理"
+          }
+        }
+      }
+    },
     "processing.empty" : {
       "localizations" : {
         "en" : {

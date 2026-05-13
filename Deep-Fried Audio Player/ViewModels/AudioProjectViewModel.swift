@@ -135,7 +135,7 @@ final class AudioProjectViewModel: ObservableObject {
                 return
             }
 
-            schedulePreviewRenderForCurrentMode()
+            markPreviewNeedsManualRender()
         }
     }
     @Published var originalAudioBuffer: AudioBuffer?
@@ -182,6 +182,7 @@ final class AudioProjectViewModel: ObservableObject {
     private let recordingService: any RecordingServicing
     private let playbackController: any AudioPlaybackControlling
     private var renderTask: Task<Void, Never>?
+    private var renderCancellationTask: Task<Void, Never>?
     private var activeRenderToken: UUID?
     private var activePlaybackToken: UUID?
 
@@ -203,8 +204,35 @@ final class AudioProjectViewModel: ObservableObject {
         self.playbackController = playbackController ?? AudioPlaybackController()
     }
 
+    nonisolated deinit {}
+
     var canExportProcessedAudio: Bool {
-        processedPreviewBuffer != nil && !isRecording
+        canUseProcessedAudio
+    }
+
+    var canPlayProcessedAudio: Bool {
+        canUseProcessedAudio
+    }
+
+    var canProcessPreview: Bool {
+        originalAudioBuffer != nil
+            && !isRecording
+            && !isActivePreviewRender
+    }
+
+    private var canUseProcessedAudio: Bool {
+        processedPreviewBuffer != nil
+            && processingState == .ready
+            && !isRecording
+    }
+
+    private var isActivePreviewRender: Bool {
+        guard operationProgress?.isActive == true else {
+            return false
+        }
+
+        return operationProgress?.kind == .singleModulePreview
+            || operationProgress?.kind == .workflowPreview
     }
 
     var isMP3ExportAvailable: Bool {
@@ -308,7 +336,7 @@ final class AudioProjectViewModel: ObservableObject {
     }
 
     func playProcessedAudio() async {
-        guard let processedPreviewBuffer else {
+        guard canPlayProcessedAudio, let processedPreviewBuffer else {
             stopCurrentPlayback(clearStatus: false)
             playbackStatusKey = "playback.noProcessed"
             return
@@ -330,7 +358,7 @@ final class AudioProjectViewModel: ObservableObject {
             return nil
         }
 
-        guard let processedPreviewBuffer else {
+        guard canExportProcessedAudio, let processedPreviewBuffer else {
             exportStatusKey = "export.noProcessed"
             return nil
         }
@@ -436,7 +464,7 @@ final class AudioProjectViewModel: ObservableObject {
         selectedModulePresetID = nil
         modulePresetName = ""
         singleModuleStatusKey = nil
-        scheduleSingleModulePreviewRender()
+        markPreviewNeedsManualRender()
     }
 
     func updateSingleModuleParameter(key: String, value: EffectParameterValue) {
@@ -448,16 +476,27 @@ final class AudioProjectViewModel: ObservableObject {
         selectedSingleModule.presetName = nil
         selectedModulePresetID = nil
         singleModuleStatusKey = nil
-        scheduleSingleModulePreviewRender()
+        markPreviewNeedsManualRender()
+    }
+
+    func renderProcessedPreview() async {
+        switch mode {
+        case .singleModule:
+            await renderSingleModulePreview()
+        case .workflow:
+            await renderWorkflowPreview()
+        }
     }
 
     func renderSingleModulePreview() async {
+        await waitForPendingPreviewCancellation()
         renderTask?.cancel()
         renderTask = nil
         await renderSingleModulePreviewWithoutCancelling()
     }
 
     func renderWorkflowPreview() async {
+        await waitForPendingPreviewCancellation()
         renderTask?.cancel()
         renderTask = nil
         await renderWorkflowPreviewWithoutCancelling()
@@ -546,7 +585,7 @@ final class AudioProjectViewModel: ObservableObject {
             selectedSingleModule.presetName = preset.name
             modulePresetName = preset.name
             singleModuleStatusKey = "singleModule.presetLoaded"
-            scheduleSingleModulePreviewRender()
+            markPreviewNeedsManualRender()
             return true
         } catch {
             singleModuleStatusKey = "singleModule.presetLoadFailed"
@@ -608,7 +647,7 @@ final class AudioProjectViewModel: ObservableObject {
             self.selectedWorkflowBlockID = currentWorkflow.orderedBlocks.first?.id
             workflowPresetName = preset.name
             workflowStatusKey = "workflow.presetLoaded"
-            scheduleWorkflowPreviewRender()
+            markPreviewNeedsManualRender()
             return true
         } catch {
             workflowStatusKey = "workflow.presetLoadFailed"
@@ -628,7 +667,7 @@ final class AudioProjectViewModel: ObservableObject {
         mode = .workflow
         singleModuleStatusKey = "singleModule.sentToWorkflow"
         workflowStatusKey = "workflow.moduleReceived"
-        scheduleWorkflowPreviewRender()
+        markPreviewNeedsManualRender()
     }
 
     func selectWorkflowBlock(id: EffectBlock.ID?) {
@@ -751,38 +790,11 @@ final class AudioProjectViewModel: ObservableObject {
         markWorkflowChanged()
     }
 
-    private func schedulePreviewRenderForCurrentMode() {
-        switch mode {
-        case .singleModule:
-            scheduleSingleModulePreviewRender()
-        case .workflow:
-            scheduleWorkflowPreviewRender()
-        }
-    }
-
-    private func scheduleSingleModulePreviewRender() {
-        renderTask?.cancel()
-        renderTask = Task { [weak self] in
-            await self?.renderSingleModulePreviewWithoutCancelling()
-        }
-    }
-
-    private func scheduleWorkflowPreviewRender() {
-        guard mode == .workflow else {
-            return
-        }
-
-        renderTask?.cancel()
-        renderTask = Task { [weak self] in
-            await self?.renderWorkflowPreviewWithoutCancelling()
-        }
-    }
-
     private func markWorkflowChanged() {
         currentWorkflow.updatedAt = Date()
         workflowStatusKey = nil
         selectedWorkflowPresetID = nil
-        scheduleWorkflowPreviewRender()
+        markPreviewNeedsManualRender()
     }
 
     private func nextWorkflowOrder() -> Int {
@@ -849,7 +861,54 @@ final class AudioProjectViewModel: ObservableObject {
         processedPreviewBuffer = nil
         audioSourceStatusKey = statusKey
         exportStatusKey = nil
-        schedulePreviewRenderForCurrentMode()
+        markPreviewNeedsManualRender(clearOperationProgress: true)
+    }
+
+    private func markPreviewNeedsManualRender(
+        clearOperationProgress: Bool = false
+    ) {
+        cancelActivePreviewRender(clearOperationProgress: clearOperationProgress)
+        processingState = originalAudioBuffer == nil ? .empty : .dirty
+        exportStatusKey = nil
+    }
+
+    private func cancelActivePreviewRender(clearOperationProgress: Bool) {
+        let shouldCancelRenderer = renderTask != nil
+            || isActivePreviewRender
+            || activeRenderToken != nil
+
+        activeRenderToken = nil
+        renderTask?.cancel()
+        renderTask = nil
+
+        if shouldCancelRenderer {
+            let renderer = renderer
+            let previousCancellationTask = renderCancellationTask
+            renderCancellationTask = Task {
+                await previousCancellationTask?.value
+                await renderer.cancelActiveRender()
+            }
+        }
+
+        if clearOperationProgress {
+            operationProgress = nil
+        } else {
+            clearPreviewProgressIfNeeded()
+        }
+    }
+
+    private func clearPreviewProgressIfNeeded() {
+        guard operationProgress?.kind == .singleModulePreview
+                || operationProgress?.kind == .workflowPreview else {
+            return
+        }
+
+        operationProgress = nil
+    }
+
+    private func waitForPendingPreviewCancellation() async {
+        await renderCancellationTask?.value
+        renderCancellationTask = nil
     }
 
     private func playAudioBuffer(
@@ -1115,6 +1174,7 @@ final class AudioProjectViewModel: ObservableObject {
                 return
             }
 
+            activeRenderToken = nil
             processedPreviewBuffer = output
             processingState = .ready
             markOperationCompleted(phaseKey: "progress.phase.completed")
@@ -1123,6 +1183,7 @@ final class AudioProjectViewModel: ObservableObject {
                 return
             }
 
+            activeRenderToken = nil
             processingState = .dirty
             markOperationCancelled()
         } catch {
@@ -1130,6 +1191,7 @@ final class AudioProjectViewModel: ObservableObject {
                 return
             }
 
+            activeRenderToken = nil
             processedPreviewBuffer = nil
             processingState = .failed(message: error.localizedDescription)
             singleModuleStatusKey = "singleModule.renderFailed"
@@ -1175,6 +1237,7 @@ final class AudioProjectViewModel: ObservableObject {
                 return
             }
 
+            activeRenderToken = nil
             processedPreviewBuffer = output
             processingState = .ready
             markOperationCompleted(phaseKey: "progress.phase.completed")
@@ -1183,6 +1246,7 @@ final class AudioProjectViewModel: ObservableObject {
                 return
             }
 
+            activeRenderToken = nil
             processingState = .dirty
             markOperationCancelled()
         } catch {
@@ -1190,6 +1254,7 @@ final class AudioProjectViewModel: ObservableObject {
                 return
             }
 
+            activeRenderToken = nil
             processedPreviewBuffer = nil
             processingState = .failed(message: error.localizedDescription)
             workflowStatusKey = "workflow.renderFailed"

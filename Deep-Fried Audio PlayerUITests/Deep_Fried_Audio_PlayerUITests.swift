@@ -33,6 +33,10 @@ final class Deep_Fried_Audio_PlayerUITests: XCTestCase {
 
         tap(element("audioSampleButton", in: app), in: app)
         XCTAssertTrue(app.descendants(matching: .any)["waveformView"].waitForExistence(timeout: 10))
+
+        let processButton = app.descendants(matching: .any)["processPreviewButton"]
+        tap(processButton, in: app)
+
         let exportMenu = app.descendants(matching: .any)["audioExportMenu"]
         XCTAssertTrue(exportMenu.waitForExistence(timeout: 5))
         XCTAssertTrue(waitForEnabled(exportMenu))
